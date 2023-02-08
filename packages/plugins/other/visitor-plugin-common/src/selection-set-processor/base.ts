@@ -27,7 +27,7 @@ export class BaseSelectionSetProcessor<Config extends SelectionSetProcessorConfi
   constructor(public config: Config) {}
 
   buildFieldsIntoObject(allObjectsMerged: string[]): string {
-    return `{ ${allObjectsMerged.join(', ')} }`;
+    return `{\n  ${allObjectsMerged.join(',\n  ')}\n}`;
   }
 
   buildSelectionSetFromStrings(pieces: string[]): string {
