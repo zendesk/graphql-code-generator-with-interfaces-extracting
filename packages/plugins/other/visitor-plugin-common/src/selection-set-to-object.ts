@@ -773,7 +773,8 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     fragmentSuffix: string,
     declarationBlockConfig: DeclarationBlockConfig
   ): string {
-    const { grouped, interfaces } = this._buildGroupedSelections(fragmentName);
+    const prefix = this.buildFragmentTypeName(fragmentName, fragmentSuffix);
+    const { grouped, interfaces } = this._buildGroupedSelections(prefix);
 
     const subTypes: { name: string; content: string }[] = Object.keys(grouped)
       .map(typeName => {
@@ -849,7 +850,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
   protected buildFragmentTypeName(name: string, suffix: string, typeName = ''): string {
     return this._convertName(name, {
       useTypesPrefix: true,
-      suffix: typeName ? `_${typeName}_${suffix}` : suffix,
+      suffix: typeName && suffix ? `_${typeName}_${suffix}` : typeName ? `_${typeName}` : suffix,
     });
   }
 }
