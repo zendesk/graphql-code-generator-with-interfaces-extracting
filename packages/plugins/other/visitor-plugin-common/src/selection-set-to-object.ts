@@ -251,6 +251,15 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
             fragmentSuffix,
             possibleTypesForFragment.length === 1 ? null : possibleType.name
           );
+          console.log(
+            spread.name.value,
+            'fragmentSuffix',
+            fragmentSuffix,
+            'usage',
+            usage,
+            'possibleType.name',
+            possibleType.name
+          );
 
           selectionNodesByTypeName[possibleType.name] ||= [];
 
@@ -327,7 +336,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
   /**
    * mustAddEmptyObject indicates that not all possible types on a union or interface field are covered.
    */
-  protected _buildGroupedSelections(parentFieldName: string): {
+  protected _buildGroupedSelections(parentName: string): {
     grouped: GroupedStringifiedTypes;
     interfaces: { name: string; content: string }[];
     mustAddEmptyObject: boolean;
@@ -357,27 +366,60 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
 
         prev[typeName] ||= [];
 
-        const { incrementalNodes, selectionNodes } = allNodes.reduce<{
-          selectionNodes: (SelectionNode | FragmentSpreadUsage)[];
+        // incrementalNodes are the ones flagged with @defer, meaning they become nullable I guess?
+        const {
+          incrementalNodes,
+          selectionNodes,
+          fragmentSpreads,
+          interfaces: fragmentInterfaces,
+        } = allNodes.reduce<{
+          selectionNodes: SelectionNode[];
           incrementalNodes: FragmentSpreadUsage[];
+          fragmentSpreads: string[];
+          interfaces: {
+            name: string;
+            content: string;
+          }[];
         }>(
           (acc, node) => {
-            if ('fragmentDirectives' in node && hasIncrementalDeliveryDirectives(node.fragmentDirectives)) {
-              acc.incrementalNodes.push(node);
+            // if ('kind' in node && node.kind === Kind.FRAGMENT_SPREAD) {
+            //   // TODO: do we need FragmentSpreadUsage too?
+            //   acc.fragmentSpreads.push(node);
+            //   return acc;
+            // }
+            if ('fragmentName' in node) {
+              if ('fragmentDirectives' in node && hasIncrementalDeliveryDirectives(node.fragmentDirectives)) {
+                acc.incrementalNodes.push(node);
+              } else {
+                const { fields: spreadFields, interfaces } = this.buildSelectionSet(schemaType, [node], {
+                  parentFieldName: `${parentName}_${node.typeName}`,
+                });
+                const transformedSet = this.selectionSetStringFromFields(spreadFields);
+                acc.fragmentSpreads.push(transformedSet);
+                acc.interfaces.push(...interfaces);
+              }
             } else {
               acc.selectionNodes.push(node);
             }
             return acc;
           },
-          { selectionNodes: [], incrementalNodes: [] }
+          { selectionNodes: [], incrementalNodes: [], fragmentSpreads: [], interfaces: [] }
         );
 
-        const { fields, interfaces } = this.buildSelectionSet(schemaType, selectionNodes, { parentFieldName });
+        const { fields, interfaces } = this.buildSelectionSet(schemaType, selectionNodes, {
+          parentFieldName: parentName,
+        });
         const transformedSet = this.selectionSetStringFromFields(fields);
+
         if (transformedSet) {
           prev[typeName].push(transformedSet);
           ifaces.push(...interfaces);
-        } else {
+        }
+        if (fragmentSpreads.length) {
+          prev[typeName].push(...fragmentSpreads);
+          ifaces.push(...fragmentInterfaces);
+        }
+        if (!transformedSet && !fragmentSpreads.length) {
           mustAddEmptyObject = true;
         }
 
@@ -385,16 +427,18 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
           if (this._config.inlineFragmentTypes === 'mask' && 'fragmentName' in incrementalNode) {
             const { fields: incrementalFields } = this.buildSelectionSet(schemaType, [incrementalNode], {
               unsetTypes: true,
-              parentFieldName,
+              parentFieldName: parentName,
             });
             prev[typeName].push(this.selectionSetStringFromFields(incrementalFields));
 
             continue;
           }
-          const { fields: initialFields } = this.buildSelectionSet(schemaType, [incrementalNode], { parentFieldName });
+          const { fields: initialFields } = this.buildSelectionSet(schemaType, [incrementalNode], {
+            parentFieldName: parentName,
+          });
           const { fields: subsequentFields } = this.buildSelectionSet(schemaType, [incrementalNode], {
             unsetTypes: true,
-            parentFieldName,
+            parentFieldName: parentName,
           });
 
           const initialSet = this.selectionSetStringFromFields(initialFields);
@@ -430,7 +474,9 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
 
       const selectionNodes = selectionNodesByTypeName.get(typeName) || [];
 
-      const { typeInfo, fields, interfaces } = this.buildSelectionSet(schemaType, selectionNodes, { parentFieldName });
+      const { typeInfo, fields, interfaces } = this.buildSelectionSet(schemaType, selectionNodes, {
+        parentFieldName: parentName,
+      });
       ifaces.push(...interfaces);
 
       const key = this.selectionSetStringFromFields(fields);
@@ -602,8 +648,19 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       const realSelectedFieldType = getBaseType(selectedFieldType as any);
       const selectionSet = this.createNext(realSelectedFieldType, field.selectionSet);
       const fieldName = field.alias?.value ?? field.name.value;
+      // console.log('selections', field.selectionSet.selections);
+      // TODO: unless we're building a Fragment,
+      // do not transform named 'FragmentSpread's (they are already being transformed),
+      // just reference those types, or extend them (in case of combined InlineFragment or other selections) by making an interface X extends Y { ... }
       const selectionSetObjects = selectionSet.transformSelectionSet(
         options.parentFieldName ? `${options.parentFieldName}_${fieldName}` : fieldName
+      );
+
+      console.log(
+        'FragmentSpread',
+        field.selectionSet.selections.filter(s => s.kind === 'FragmentSpread'),
+        'name',
+        fieldName
       );
       linkFieldsInterfaces.push(...selectionSetObjects.interfaces);
       const isConditional = hasConditionalDirectives(field) || inlineFragmentConditional;
@@ -773,8 +830,8 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     fragmentSuffix: string,
     declarationBlockConfig: DeclarationBlockConfig
   ): string {
-    const prefix = this.buildFragmentTypeName(fragmentName, fragmentSuffix);
-    const { grouped, interfaces } = this._buildGroupedSelections(prefix);
+    const fragmentTypeName = this.buildFragmentTypeName(fragmentName, fragmentSuffix);
+    const { grouped, interfaces } = this._buildGroupedSelections(fragmentTypeName);
 
     const subTypes: { name: string; content: string }[] = Object.keys(grouped)
       .map(typeName => {
@@ -801,7 +858,6 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       })
       .filter(Boolean);
 
-    const fragmentTypeName = this.buildFragmentTypeName(fragmentName, fragmentSuffix);
     const fragmentMaskPartial =
       this._config.inlineFragmentTypes === 'mask' ? ` & { ' $fragmentName'?: '${fragmentTypeName}' }` : '';
 
