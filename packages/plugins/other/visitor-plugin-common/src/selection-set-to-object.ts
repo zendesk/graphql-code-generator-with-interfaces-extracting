@@ -384,9 +384,9 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
           incrementalNodes,
           selectionNodes,
           fragmentSpreads,
-          interfaces: fragmentInterfaces,
+          // interfaces: fragmentInterfaces,
         } = allNodes.reduce<{
-          selectionNodes: SelectionNode[];
+          selectionNodes: (SelectionNode | FragmentSpreadUsage)[];
           incrementalNodes: FragmentSpreadUsage[];
           fragmentSpreads: string[];
           interfaces: {
@@ -400,18 +400,20 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
             //   acc.fragmentSpreads.push(node);
             //   return acc;
             // }
-            if ('fragmentName' in node) {
-              if ('fragmentDirectives' in node && hasIncrementalDeliveryDirectives(node.fragmentDirectives)) {
-                acc.incrementalNodes.push(node);
-              } else {
-                const { fields: spreadFields, interfaces } = this.buildSelectionSet(schemaType, [node], {
-                  parentFieldName: `${parentName}_${node.typeName}`,
-                });
-                const transformedSet = this.selectionSetStringFromFields(spreadFields);
-                acc.fragmentSpreads.push(transformedSet);
-                acc.interfaces.push(...interfaces);
-              }
-            } else {
+            // if ('fragmentName' in node) {
+            if ('fragmentDirectives' in node && hasIncrementalDeliveryDirectives(node.fragmentDirectives)) {
+              acc.incrementalNodes.push(node);
+            }
+            // else {
+            //   const { fields: spreadFields, interfaces } = this.buildSelectionSet(schemaType, [node], {
+            //     parentFieldName: `${parentName}_${node.typeName}`,
+            //   });
+            //   const transformedSet = this.selectionSetStringFromFields(spreadFields);
+            //   acc.fragmentSpreads.push(transformedSet);
+            //   acc.interfaces.push(...interfaces);
+            // }
+            // }
+            else {
               acc.selectionNodes.push(node);
             }
             return acc;
@@ -428,10 +430,10 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
           prev[typeName].push(transformedSet);
           ifaces.push(...interfaces);
         }
-        if (fragmentSpreads.length) {
-          prev[typeName].push(...fragmentSpreads);
-          ifaces.push(...fragmentInterfaces);
-        }
+        // if (fragmentSpreads.length) {
+        //   prev[typeName].push(...fragmentSpreads);
+        //   ifaces.push(...fragmentInterfaces);
+        // }
         if (!transformedSet && !fragmentSpreads.length) {
           mustAddEmptyObject = true;
         }

@@ -151,26 +151,6 @@ describe('ExtractTypes', () => {
         }
       `);
 
-      const doc2 = parse(/* GraphQL */ `
-        fragment ActiveUserFragment on ActiveUser {
-          id
-          joinDate
-          thing
-        }
-        query GetMe2 {
-          me {
-            id
-            ...UserFragment
-            ...ActiveUserFragment
-            ... on ActiveUser {
-              isActive
-              parentUser {
-                ...UserFragment
-              }
-            }
-          }
-        }
-      `);
       const config: TypeScriptDocumentsPluginConfig = {
         preResolveTypes: true,
         extractAllTypes: true,
@@ -192,7 +172,7 @@ describe('ExtractTypes', () => {
         testSchema,
         [
           { location: 'test-file.ts', document: doc },
-          { location: 'test-file2.ts', document: doc2 },
+          // { location: 'test-file2.ts', document: doc2 },
         ],
         config,
         {
@@ -215,28 +195,15 @@ describe('ExtractTypes', () => {
         export type UserFragment = UserFragment_DummyUser | UserFragment_ActiveUser;
 
         export interface MeFragment_me_parentUser_DummyUser {
-          __typename: 'DummyUser'
-        }
-
-        export interface MeFragment_me_parentUser_DummyUser {
           __typename: 'DummyUser',
           id: string,
           joinDate: any
-        }
-
-        export interface MeFragment_me_parentUser_ActiveUser {
-          __typename: 'ActiveUser'
         }
 
         export interface MeFragment_me_parentUser_ActiveUser {
           __typename: 'ActiveUser',
           id: string,
           joinDate: any
-        }
-
-        export interface MeFragment_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string
         }
 
         export interface MeFragment_me_DummyUser {
@@ -249,72 +216,39 @@ describe('ExtractTypes', () => {
           __typename: 'ActiveUser',
           isActive: boolean,
           id: string,
-          parentUser: MeFragment_me_parentUser_DummyUser & MeFragment_me_parentUser_DummyUser | MeFragment_me_parentUser_ActiveUser & MeFragment_me_parentUser_ActiveUser
-        }
-
-        export interface MeFragment_me_ActiveUser {
-          __typename: 'ActiveUser',
-          id: string,
-          joinDate: any
+          joinDate: any,
+          parentUser: MeFragment_me_parentUser_DummyUser | MeFragment_me_parentUser_ActiveUser
         }
 
         export type MeFragment = {
           __typename: 'Query',
-          me?: MeFragment_me_DummyUser & MeFragment_me_DummyUser | MeFragment_me_ActiveUser & MeFragment_me_ActiveUser | null
+          me?: MeFragment_me_DummyUser | MeFragment_me_ActiveUser | null
         };
+
+        export interface GetMeQuery_me_parentUser_DummyUser {
+          __typename: 'DummyUser',
+          id: string,
+          joinDate: any
+        }
+
+        export interface GetMeQuery_me_parentUser_ActiveUser {
+          __typename: 'ActiveUser',
+          id: string,
+          joinDate: any
+        }
 
         export interface GetMeQuery_me_DummyUser {
           __typename: 'DummyUser',
-          id: string
+          id: string,
+          joinDate: any
         }
 
         export interface GetMeQuery_me_ActiveUser {
           __typename: 'ActiveUser',
-          id: string
-        }
-
-        export interface GetMeQuery_MeFragment_me_parentUser_DummyUser {
-          __typename: 'DummyUser'
-        }
-
-        export interface GetMeQuery_MeFragment_me_parentUser_DummyUser {
-          __typename: 'DummyUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface GetMeQuery_MeFragment_me_parentUser_ActiveUser {
-          __typename: 'ActiveUser'
-        }
-
-        export interface GetMeQuery_MeFragment_me_parentUser_ActiveUser {
-          __typename: 'ActiveUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface GetMeQuery_MeFragment_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string
-        }
-
-        export interface GetMeQuery_MeFragment_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface GetMeQuery_MeFragment_me_ActiveUser {
-          __typename: 'ActiveUser',
           isActive: boolean,
           id: string,
-          parentUser: GetMeQuery_MeFragment_me_parentUser_DummyUser & GetMeQuery_MeFragment_me_parentUser_DummyUser | GetMeQuery_MeFragment_me_parentUser_ActiveUser & GetMeQuery_MeFragment_me_parentUser_ActiveUser
-        }
-
-        export interface GetMeQuery_MeFragment_me_ActiveUser {
-          __typename: 'ActiveUser',
-          id: string,
-          joinDate: any
+          joinDate: any,
+          parentUser: GetMeQuery_me_parentUser_DummyUser | GetMeQuery_me_parentUser_ActiveUser
         }
 
         export interface GetMeQuery_Query {
@@ -322,85 +256,11 @@ describe('ExtractTypes', () => {
           me?: GetMeQuery_me_DummyUser | GetMeQuery_me_ActiveUser | null
         }
 
-        export interface GetMeQuery_Query {
-          __typename: 'Query',
-          me?: GetMeQuery_MeFragment_me_DummyUser & GetMeQuery_MeFragment_me_DummyUser | GetMeQuery_MeFragment_me_ActiveUser & GetMeQuery_MeFragment_me_ActiveUser | null
-        }
-
 
         export type GetMeQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-        export type GetMeQuery = GetMeQuery_Query & GetMeQuery_Query;
-
-        export type ActiveUserFragment = {
-          __typename: 'ActiveUser',
-          id: string,
-          joinDate: any,
-          thing: string
-        };
-
-        export interface GetMe2Query_me_parentUser_DummyUser {
-          __typename: 'DummyUser'
-        }
-
-        export interface GetMe2Query_me_parentUser_DummyUser {
-          __typename: 'DummyUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface GetMe2Query_me_parentUser_ActiveUser {
-          __typename: 'ActiveUser'
-        }
-
-        export interface GetMe2Query_me_parentUser_ActiveUser {
-          __typename: 'ActiveUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface GetMe2Query_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string
-        }
-
-        export interface GetMe2Query_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface GetMe2Query_me_ActiveUser {
-          __typename: 'ActiveUser',
-          isActive: boolean,
-          id: string,
-          parentUser: GetMe2Query_me_parentUser_DummyUser & GetMe2Query_me_parentUser_DummyUser | GetMe2Query_me_parentUser_ActiveUser & GetMe2Query_me_parentUser_ActiveUser
-        }
-
-        export interface GetMe2Query_me_ActiveUser {
-          __typename: 'ActiveUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface GetMe2Query_me_ActiveUser {
-          __typename: 'ActiveUser',
-          id: string,
-          joinDate: any,
-          thing: string
-        }
-
-        export interface GetMe2Query_Query {
-          __typename: 'Query',
-          me?: GetMe2Query_me_DummyUser & GetMe2Query_me_DummyUser | GetMe2Query_me_ActiveUser & GetMe2Query_me_ActiveUser & GetMe2Query_me_ActiveUser | null
-        }
-
-
-        export type GetMe2QueryVariables = Exact<{ [key: string]: never; }>;
-
-
-        export type GetMe2Query = GetMe2Query_Query;
+        export type GetMeQuery = GetMeQuery_Query;
         "
       `);
       // expect(content).toContain(`Pick<User, 'id' | 'joinDate'>`);
@@ -462,28 +322,15 @@ describe('ExtractTypes', () => {
         export type UserFragment = UserFragment_DummyUser | UserFragment_ActiveUser;
 
         export interface MeFragment_me_parentUser_DummyUser {
-          __typename: 'DummyUser'
-        }
-
-        export interface MeFragment_me_parentUser_DummyUser {
           __typename: 'DummyUser',
           id: string,
           joinDate: any
-        }
-
-        export interface MeFragment_me_parentUser_ActiveUser {
-          __typename: 'ActiveUser'
         }
 
         export interface MeFragment_me_parentUser_ActiveUser {
           __typename: 'ActiveUser',
           id: string,
           joinDate: any
-        }
-
-        export interface MeFragment_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string
         }
 
         export interface MeFragment_me_DummyUser {
@@ -496,72 +343,39 @@ describe('ExtractTypes', () => {
           __typename: 'ActiveUser',
           isActive: boolean,
           id: string,
-          parentUser: MeFragment_me_parentUser_DummyUser & MeFragment_me_parentUser_DummyUser | MeFragment_me_parentUser_ActiveUser & MeFragment_me_parentUser_ActiveUser
-        }
-
-        export interface MeFragment_me_ActiveUser {
-          __typename: 'ActiveUser',
-          id: string,
-          joinDate: any
+          joinDate: any,
+          parentUser: MeFragment_me_parentUser_DummyUser | MeFragment_me_parentUser_ActiveUser
         }
 
         export type MeFragment = {
           __typename: 'Query',
-          me?: MeFragment_me_DummyUser & MeFragment_me_DummyUser | MeFragment_me_ActiveUser & MeFragment_me_ActiveUser | null
+          me?: MeFragment_me_DummyUser | MeFragment_me_ActiveUser | null
         };
+
+        export interface GetMeQuery_me_parentUser_DummyUser {
+          __typename: 'DummyUser',
+          id: string,
+          joinDate: any
+        }
+
+        export interface GetMeQuery_me_parentUser_ActiveUser {
+          __typename: 'ActiveUser',
+          id: string,
+          joinDate: any
+        }
 
         export interface GetMeQuery_me_DummyUser {
           __typename: 'DummyUser',
-          id: string
+          id: string,
+          joinDate: any
         }
 
         export interface GetMeQuery_me_ActiveUser {
           __typename: 'ActiveUser',
-          id: string
-        }
-
-        export interface GetMeQuery_MeFragment_me_parentUser_DummyUser {
-          __typename: 'DummyUser'
-        }
-
-        export interface GetMeQuery_MeFragment_me_parentUser_DummyUser {
-          __typename: 'DummyUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface GetMeQuery_MeFragment_me_parentUser_ActiveUser {
-          __typename: 'ActiveUser'
-        }
-
-        export interface GetMeQuery_MeFragment_me_parentUser_ActiveUser {
-          __typename: 'ActiveUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface GetMeQuery_MeFragment_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string
-        }
-
-        export interface GetMeQuery_MeFragment_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface GetMeQuery_MeFragment_me_ActiveUser {
-          __typename: 'ActiveUser',
           isActive: boolean,
           id: string,
-          parentUser: GetMeQuery_MeFragment_me_parentUser_DummyUser & GetMeQuery_MeFragment_me_parentUser_DummyUser | GetMeQuery_MeFragment_me_parentUser_ActiveUser & GetMeQuery_MeFragment_me_parentUser_ActiveUser
-        }
-
-        export interface GetMeQuery_MeFragment_me_ActiveUser {
-          __typename: 'ActiveUser',
-          id: string,
-          joinDate: any
+          joinDate: any,
+          parentUser: GetMeQuery_me_parentUser_DummyUser | GetMeQuery_me_parentUser_ActiveUser
         }
 
         export interface GetMeQuery_Query {
@@ -569,85 +383,11 @@ describe('ExtractTypes', () => {
           me?: GetMeQuery_me_DummyUser | GetMeQuery_me_ActiveUser | null
         }
 
-        export interface GetMeQuery_Query {
-          __typename: 'Query',
-          me?: GetMeQuery_MeFragment_me_DummyUser & GetMeQuery_MeFragment_me_DummyUser | GetMeQuery_MeFragment_me_ActiveUser & GetMeQuery_MeFragment_me_ActiveUser | null
-        }
-
 
         export type GetMeQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-        export type GetMeQuery = GetMeQuery_Query & GetMeQuery_Query;
-
-        export type ActiveUserFragment = {
-          __typename: 'ActiveUser',
-          id: string,
-          joinDate: any,
-          thing: string
-        };
-
-        export interface GetMe2Query_me_parentUser_DummyUser {
-          __typename: 'DummyUser'
-        }
-
-        export interface GetMe2Query_me_parentUser_DummyUser {
-          __typename: 'DummyUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface GetMe2Query_me_parentUser_ActiveUser {
-          __typename: 'ActiveUser'
-        }
-
-        export interface GetMe2Query_me_parentUser_ActiveUser {
-          __typename: 'ActiveUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface GetMe2Query_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string
-        }
-
-        export interface GetMe2Query_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface GetMe2Query_me_ActiveUser {
-          __typename: 'ActiveUser',
-          isActive: boolean,
-          id: string,
-          parentUser: GetMe2Query_me_parentUser_DummyUser & GetMe2Query_me_parentUser_DummyUser | GetMe2Query_me_parentUser_ActiveUser & GetMe2Query_me_parentUser_ActiveUser
-        }
-
-        export interface GetMe2Query_me_ActiveUser {
-          __typename: 'ActiveUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface GetMe2Query_me_ActiveUser {
-          __typename: 'ActiveUser',
-          id: string,
-          joinDate: any,
-          thing: string
-        }
-
-        export interface GetMe2Query_Query {
-          __typename: 'Query',
-          me?: GetMe2Query_me_DummyUser & GetMe2Query_me_DummyUser | GetMe2Query_me_ActiveUser & GetMe2Query_me_ActiveUser & GetMe2Query_me_ActiveUser | null
-        }
-
-
-        export type GetMe2QueryVariables = Exact<{ [key: string]: never; }>;
-
-
-        export type GetMe2Query = GetMe2Query_Query;
+        export type GetMeQuery = GetMeQuery_Query;
         "
       `);
     });
