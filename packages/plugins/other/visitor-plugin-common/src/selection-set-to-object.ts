@@ -234,6 +234,11 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     };
   }
 
+  /**
+   * The `buildFragmentSpreadsUsage` method is used to collect fields from fragment spreads in the selection set.
+   * It creates a record of fragment spread usages, which includes the fragment name, type name, and the selection nodes
+   * inside the fragment.
+   */
   protected buildFragmentSpreadsUsage(spreads: FragmentSpreadNode[]): Record<string, FragmentSpreadUsage[]> {
     const selectionNodesByTypeName: Record<string, FragmentSpreadUsage[]> = {};
 
@@ -277,6 +282,10 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     return selectionNodesByTypeName;
   }
 
+  /**
+   * The `flattenSelectionSet` method is used to flatten the selection set into a map where each key is a type name and
+   * the value is an array of selection nodes that apply to that type. It handles inline fragments and fragment spreads.
+   */
   protected flattenSelectionSet(
     selections: ReadonlyArray<SelectionNode>,
     parentSchemaType?: GraphQLObjectType<any, any>
@@ -334,6 +343,10 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
   }
 
   /**
+   * The `_buildGroupedSelections` method is used to group selection sets by the type they apply to.
+   * It handles different scenarios such as fields, inline fragments, and fragment spreads. It also takes into account
+   * directives such as @defer.
+   *
    * mustAddEmptyObject indicates that not all possible types on a union or interface field are covered.
    */
   protected _buildGroupedSelections(parentName: string): {
