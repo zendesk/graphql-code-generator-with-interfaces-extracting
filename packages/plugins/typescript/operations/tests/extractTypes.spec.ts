@@ -200,138 +200,55 @@ describe('ExtractTypes', () => {
         }
       );
       expect(content).toMatchInlineSnapshot(`
-        "type UserFragment_DummyUser = {
-          __typename: 'DummyUser',
+        "interface User = {
           id: string,
           joinDate: any
         };
 
-        type UserFragment_ActiveUser = {
+        export GetMeQuery_MeFragment_me_ActiveUserInline_parentUser_UserFragment_ActiveUser extends User {
           __typename: 'ActiveUser',
           id: string,
           joinDate: any
         };
 
-        export type UserFragment = UserFragment_DummyUser | UserFragment_ActiveUser;
+        export type GetMeQuery_MeFragment_me_ActiveUserInline_parentUser_UserFragment = GetMeQuery_MeFragment_me_ActiveUserInline_parentUser_UserFragment_ActiveUser;
 
-        export interface MeFragment_me_parentUser_DummyUser {
-          __typename: 'DummyUser'
-        }
-
-        export interface MeFragment_me_parentUser_DummyUser {
-          __typename: 'DummyUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface MeFragment_me_parentUser_ActiveUser {
-          __typename: 'ActiveUser'
-        }
-
-        export interface MeFragment_me_parentUser_ActiveUser {
-          __typename: 'ActiveUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface MeFragment_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string
-        }
-
-        export interface MeFragment_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface MeFragment_me_ActiveUser {
+        export type GetMeQuery_MeFragment_me_ActiveUserInline = {
           __typename: 'ActiveUser',
           isActive: boolean,
-          id: string,
-          parentUser: MeFragment_me_parentUser_DummyUser & MeFragment_me_parentUser_DummyUser | MeFragment_me_parentUser_ActiveUser & MeFragment_me_parentUser_ActiveUser
-        }
-
-        export interface MeFragment_me_ActiveUser {
-          __typename: 'ActiveUser',
-          id: string,
-          joinDate: any
-        }
-
-        export type MeFragment = {
-          __typename: 'Query',
-          me?: MeFragment_me_DummyUser & MeFragment_me_DummyUser | MeFragment_me_ActiveUser & MeFragment_me_ActiveUser | null
+          parentUser: GetMeQuery_MeFragment_me_ActiveUserInline_parentUser_UserFragment
         };
 
-        export interface GetMeQuery_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string
-        }
-
-        export interface GetMeQuery_me_ActiveUser {
-          __typename: 'ActiveUser',
-          id: string
-        }
-
-        export interface GetMeQuery_MeFragment_me_parentUser_DummyUser {
-          __typename: 'DummyUser'
-        }
-
-        export interface GetMeQuery_MeFragment_me_parentUser_DummyUser {
+        export type GetMeQuery_MeFragment_me_UserFragment_DummyUser = {
           __typename: 'DummyUser',
           id: string,
           joinDate: any
-        }
+        };
 
-        export interface GetMeQuery_MeFragment_me_parentUser_ActiveUser {
-          __typename: 'ActiveUser'
-        }
-
-        export interface GetMeQuery_MeFragment_me_parentUser_ActiveUser {
+        export type GetMeQuery_MeFragment_me_UserFragment_ActiveUser = {
           __typename: 'ActiveUser',
           id: string,
           joinDate: any
+        };
+
+        export type GetMeQuery_MeFragment_me_UserFragment = GetMeQuery_MeFragment_me_UserFragment_DummyUser | GetMeQuery_MeFragment_me_UserFragment_ActiveUserInline;
+
+        export interface GetMeQuery_MeFragment_me extends GetMeQuery_MeFragment_me_UserFragment & GetMeQuery_MeFragment_me_ActiveUserInline = {
+          id: any
         }
 
-        export interface GetMeQuery_MeFragment_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string
-        }
-
-        export interface GetMeQuery_MeFragment_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface GetMeQuery_MeFragment_me_ActiveUser {
-          __typename: 'ActiveUser',
-          isActive: boolean,
-          id: string,
-          parentUser: GetMeQuery_MeFragment_me_parentUser_DummyUser & GetMeQuery_MeFragment_me_parentUser_DummyUser | GetMeQuery_MeFragment_me_parentUser_ActiveUser & GetMeQuery_MeFragment_me_parentUser_ActiveUser
-        }
-
-        export interface GetMeQuery_MeFragment_me_ActiveUser {
-          __typename: 'ActiveUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface GetMeQuery_Query {
+        export interface GetMeQuery_MeFragment extends Query {
           __typename: 'Query',
-          me?: GetMeQuery_me_DummyUser | GetMeQuery_me_ActiveUser | null
-        }
-
-        export interface GetMeQuery_Query {
-          __typename: 'Query',
-          me?: GetMeQuery_MeFragment_me_DummyUser & GetMeQuery_MeFragment_me_DummyUser | GetMeQuery_MeFragment_me_ActiveUser & GetMeQuery_MeFragment_me_ActiveUser | null
-        }
-
+          me?: GetMeQuery_MeFragment_me
+        };
 
         export type GetMeQueryVariables = Exact<{ [key: string]: never; }>;
 
+        export interface GetMeQuery_Me {
+          id: any
+        };
 
-        export type GetMeQuery = GetMeQuery_Query & GetMeQuery_Query;
+        export type GetMeQuery = GetMeQuery_MeFragment | GetMeQuery_Me;
 
         export type ActiveUserFragment = {
           __typename: 'ActiveUser',
