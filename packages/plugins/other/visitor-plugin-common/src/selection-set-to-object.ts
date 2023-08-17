@@ -251,15 +251,15 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
             fragmentSuffix,
             possibleTypesForFragment.length === 1 ? null : possibleType.name
           );
-          console.log(
-            spread.name.value,
-            'fragmentSuffix',
-            fragmentSuffix,
-            'usage',
-            usage,
-            'possibleType.name',
-            possibleType.name
-          );
+          // console.log(
+          //   spread.name.value,
+          //   'fragmentSuffix',
+          //   fragmentSuffix,
+          //   'usage',
+          //   usage,
+          //   'possibleType.name',
+          //   possibleType.name
+          // );
 
           selectionNodesByTypeName[possibleType.name] ||= [];
 
@@ -656,12 +656,12 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
         options.parentFieldName ? `${options.parentFieldName}_${fieldName}` : fieldName
       );
 
-      console.log(
-        'FragmentSpread',
-        field.selectionSet.selections.filter(s => s.kind === 'FragmentSpread'),
-        'name',
-        fieldName
-      );
+      // console.log(
+      //   'FragmentSpread',
+      //   field.selectionSet.selections.filter(s => s.kind === 'FragmentSpread'),
+      //   'name',
+      //   fieldName
+      // );
       linkFieldsInterfaces.push(...selectionSetObjects.interfaces);
       const isConditional = hasConditionalDirectives(field) || inlineFragmentConditional;
       const isOptional = options.unsetTypes;

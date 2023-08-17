@@ -423,6 +423,7 @@ export class BaseVisitor<TRawConfig extends RawConfig = RawConfig, TPluginConfig
     return this._parsedConfig;
   }
 
+  // final name of interface/type
   public convertName(node: ASTNode | string, options?: BaseVisitorConvertOptions & ConvertOptions): string {
     const useTypesPrefix = typeof options?.useTypesPrefix === 'boolean' ? options.useTypesPrefix : true;
     const useTypesSuffix = typeof options?.useTypesSuffix === 'boolean' ? options.useTypesSuffix : true;
