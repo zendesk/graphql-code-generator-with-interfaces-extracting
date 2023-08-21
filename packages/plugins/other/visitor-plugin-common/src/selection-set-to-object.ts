@@ -421,9 +421,13 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
           { selectionNodes: [], incrementalNodes: [], fragmentSpreads: [], interfaces: [] }
         );
 
+        // TODO: use a shared constant (I think it might be in config somewhere?)
+        const excludedTopLevelTypes = ['Query', 'Mutation', 'Subscription'];
         const { fields, interfaces } = this.buildSelectionSet(schemaType, selectionNodes, {
-          parentFieldName: `${parentName}_${typeName}`,
+          parentFieldName: excludedTopLevelTypes.includes(typeName) ? parentName : `${parentName}_${typeName}`,
         });
+        // SomeFragment_originatedFrom_EmailInteraction
+        // SomeFragment_originatedFrom_WebInteraction
         const transformedSet = this.selectionSetStringFromFields(fields);
 
         if (transformedSet) {
@@ -792,6 +796,15 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     mergedTypeString: string;
     interfaces: { name: string; content: string }[];
   } {
+    if (this._selectionSet.selections.length === 1 && this._selectionSet.selections[0].kind === Kind.FRAGMENT_SPREAD) {
+      // if the named fragment spread is the only thing selected,
+      // simply reuse the type of the fragment instead of regenerating the fragment type again
+      return {
+        mergedTypeString: this._selectionSet.selections[0].name.value,
+        interfaces: [],
+      };
+    }
+
     const { grouped, mustAddEmptyObject, interfaces: ifaces } = this._buildGroupedSelections(fieldName);
 
     // This might happen in case we have an interface, that is being queries, without any GraphQL
