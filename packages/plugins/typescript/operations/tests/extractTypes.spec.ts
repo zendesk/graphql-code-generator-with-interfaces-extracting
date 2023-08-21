@@ -66,17 +66,14 @@ describe('ExtractTypes', () => {
             ...Me
           }
         }
-        fragment ParentMe on Query {
-          me {
-            ...Me
-          }
-        }
         query NestedOverlappingFieldsMergingTest {
           # an optimization here would be for these to merge,
           # since ParentMe selects for the same things as the field selection in: me { id }
-          ...ParentMe
           me {
-            id
+            ...Me
+            ... on ActiveUser {
+              isActive
+            }
           }
         }
       `);
@@ -116,49 +113,56 @@ describe('ExtractTypes', () => {
 
         export type UserFragment = UserFragment_DummyUser | UserFragment_ActiveUser;
 
-        export interface MeFragment_me_DummyUser {
+        type Me_DummyUser_Fragment = {
           __typename: 'DummyUser',
           id: string,
           joinDate: any
-        }
-
-        export interface MeFragment_me_ActiveUser {
-          __typename: 'ActiveUser',
-          isActive: boolean,
-          id: string,
-          joinDate: any,
-          parentUser: UserFragment
-        }
-
-        export type MeFragment = {
-          __typename: 'Query',
-          me?: MeFragment_me_DummyUser | MeFragment_me_ActiveUser | null
         };
 
-        export interface GetMeQuery_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface GetMeQuery_me_ActiveUser {
+        type Me_ActiveUser_Fragment = {
           __typename: 'ActiveUser',
           isActive: boolean,
           id: string,
           joinDate: any,
           parentUser: UserFragment
-        }
+        };
 
-        export interface GetMeQuery_Query {
+        export type MeFragment = Me_DummyUser_Fragment | Me_ActiveUser_Fragment;
+
+        export interface OverlappingFieldsMergingTestQuery_Query {
           __typename: 'Query',
-          me?: GetMeQuery_me_DummyUser | GetMeQuery_me_ActiveUser | null
+          me?: Me | null
         }
 
 
-        export type GetMeQueryVariables = Exact<{ [key: string]: never; }>;
+        export type OverlappingFieldsMergingTestQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-        export type GetMeQuery = GetMeQuery_Query;
+        export type OverlappingFieldsMergingTestQuery = OverlappingFieldsMergingTestQuery_Query;
+
+        export interface NestedOverlappingFieldsMergingTestQuery_me_DummyUser {
+          __typename: 'DummyUser',
+          id: string,
+          joinDate: any
+        }
+
+        export interface NestedOverlappingFieldsMergingTestQuery_me_ActiveUser {
+          __typename: 'ActiveUser',
+          isActive: boolean,
+          id: string,
+          joinDate: any
+        }
+
+        export interface NestedOverlappingFieldsMergingTestQuery_Query {
+          __typename: 'Query',
+          me?: NestedOverlappingFieldsMergingTestQuery_me_DummyUser | NestedOverlappingFieldsMergingTestQuery_me_ActiveUser | null
+        }
+
+
+        export type NestedOverlappingFieldsMergingTestQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+        export type NestedOverlappingFieldsMergingTestQuery = NestedOverlappingFieldsMergingTestQuery_Query;
         "
       `);
       // expect(content).toContain(`Pick<User, 'id' | 'joinDate'>`);
@@ -219,49 +223,56 @@ describe('ExtractTypes', () => {
 
         export type UserFragment = UserFragment_DummyUser | UserFragment_ActiveUser;
 
-        export interface MeFragment_me_DummyUser {
+        type Me_DummyUser_Fragment = {
           __typename: 'DummyUser',
           id: string,
           joinDate: any
-        }
-
-        export interface MeFragment_me_ActiveUser {
-          __typename: 'ActiveUser',
-          isActive: boolean,
-          id: string,
-          joinDate: any,
-          parentUser: UserFragment
-        }
-
-        export type MeFragment = {
-          __typename: 'Query',
-          me?: MeFragment_me_DummyUser | MeFragment_me_ActiveUser | null
         };
 
-        export interface GetMeQuery_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface GetMeQuery_me_ActiveUser {
+        type Me_ActiveUser_Fragment = {
           __typename: 'ActiveUser',
           isActive: boolean,
           id: string,
           joinDate: any,
           parentUser: UserFragment
-        }
+        };
 
-        export interface GetMeQuery_Query {
+        export type MeFragment = Me_DummyUser_Fragment | Me_ActiveUser_Fragment;
+
+        export interface OverlappingFieldsMergingTestQuery_Query {
           __typename: 'Query',
-          me?: GetMeQuery_me_DummyUser | GetMeQuery_me_ActiveUser | null
+          me?: Me | null
         }
 
 
-        export type GetMeQueryVariables = Exact<{ [key: string]: never; }>;
+        export type OverlappingFieldsMergingTestQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-        export type GetMeQuery = GetMeQuery_Query;
+        export type OverlappingFieldsMergingTestQuery = OverlappingFieldsMergingTestQuery_Query;
+
+        export interface NestedOverlappingFieldsMergingTestQuery_me_DummyUser {
+          __typename: 'DummyUser',
+          id: string,
+          joinDate: any
+        }
+
+        export interface NestedOverlappingFieldsMergingTestQuery_me_ActiveUser {
+          __typename: 'ActiveUser',
+          isActive: boolean,
+          id: string,
+          joinDate: any
+        }
+
+        export interface NestedOverlappingFieldsMergingTestQuery_Query {
+          __typename: 'Query',
+          me?: NestedOverlappingFieldsMergingTestQuery_me_DummyUser | NestedOverlappingFieldsMergingTestQuery_me_ActiveUser | null
+        }
+
+
+        export type NestedOverlappingFieldsMergingTestQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+        export type NestedOverlappingFieldsMergingTestQuery = NestedOverlappingFieldsMergingTestQuery_Query;
         "
       `);
     });

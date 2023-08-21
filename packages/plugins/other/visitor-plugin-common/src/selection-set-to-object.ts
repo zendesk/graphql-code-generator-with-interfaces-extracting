@@ -805,6 +805,25 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       };
     }
 
+    const allFragmentSpreads = this._selectionSet.selections.filter(
+      (selection): selection is FragmentSpreadNode => selection.kind === Kind.FRAGMENT_SPREAD
+    );
+    if (allFragmentSpreads.length === 1) {
+      const fragmentName = allFragmentSpreads[0].name.value;
+      if (
+        isFragmentSpreadOverlapping({
+          selectionSet: this._selectionSet,
+          fragment: fragmentName,
+          loadedFragments: this._loadedFragments,
+        })
+      ) {
+        return {
+          mergedTypeString: fragmentName,
+          interfaces: [],
+        };
+      }
+    }
+
     const { grouped, mustAddEmptyObject, interfaces: ifaces } = this._buildGroupedSelections(fieldName);
 
     // This might happen in case we have an interface, that is being queries, without any GraphQL
@@ -937,4 +956,106 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       suffix: typeName && suffix ? `_${typeName}_${suffix}` : typeName ? `_${typeName}` : suffix,
     });
   }
+}
+
+function getFieldName(selection: FieldNode, parentName: string) {
+  const fullName =
+    'alias' in selection && selection.alias ? `${selection.alias.value}@${selection.name.value}` : selection.name.value;
+  return parentName ? `${parentName}.${fullName}` : fullName;
+}
+
+const getFieldNames = (selectionSet: SelectionSetNode, fieldNames: Set<string>, parentName = '') => {
+  for (const selection of selectionSet.selections) {
+    if (selection.kind === 'InlineFragment') {
+      getFieldNames(selection.selectionSet, fieldNames, parentName);
+    } else if (selection.kind === 'Field') {
+      const fieldName = getFieldName(selection, parentName);
+      fieldNames.add(fieldName);
+      if (selection.selectionSet) {
+        getFieldNames(selection.selectionSet, fieldNames, fieldName);
+      }
+    }
+  }
+};
+
+const getExpandedFragmentSelections = ({
+  fragment,
+  fragmentFieldNames,
+  fieldSelections,
+  parentName,
+  loadedFragments,
+}: {
+  fragment: string | InlineFragmentNode;
+  fragmentFieldNames: Set<string>;
+  fieldSelections: Set<string>;
+  parentName?: string | undefined;
+  loadedFragments: LoadedFragment[];
+}) => {
+  const fragmentDef =
+    typeof fragment === 'string' ? loadedFragments.find(def => (def.name = fragment))?.node : fragment;
+
+  if (!fragmentDef) {
+    throw new Error('Missing fragment definition');
+  }
+
+  for (const selection of fragmentDef.selectionSet.selections) {
+    switch (selection.kind) {
+      case Kind.FIELD: {
+        const fieldName = getFieldName(selection, parentName);
+        if (fieldSelections.has(fieldName)) {
+          fragmentFieldNames.add(fieldName);
+        }
+        if (selection.selectionSet) {
+          getExpandedFragmentSelections({
+            fragment,
+            fragmentFieldNames,
+            fieldSelections,
+            parentName: fieldName,
+            loadedFragments,
+          });
+        }
+        break;
+      }
+      case Kind.FRAGMENT_SPREAD: {
+        getExpandedFragmentSelections({
+          fragment: selection.name.value,
+          fragmentFieldNames,
+          fieldSelections,
+          parentName,
+          loadedFragments,
+        });
+        break;
+      }
+      case Kind.INLINE_FRAGMENT: {
+        getExpandedFragmentSelections({
+          fragment: selection,
+          fragmentFieldNames,
+          fieldSelections,
+          parentName,
+          loadedFragments,
+        });
+      }
+    }
+  }
+};
+
+function isFragmentSpreadOverlapping({
+  selectionSet,
+  fragment,
+  loadedFragments,
+}: {
+  selectionSet: SelectionSetNode;
+  fragment: string;
+  loadedFragments: LoadedFragment[];
+}): boolean {
+  // Retrieve the selections from the FieldNode
+  const fieldSelections = new Set<string>();
+  getFieldNames(selectionSet, fieldSelections);
+
+  // Retrieve the fully expanded selections from the FragmentSpread
+  const fragmentSelections = new Set<string>();
+  getExpandedFragmentSelections({ fragment, fragmentFieldNames: fragmentSelections, fieldSelections, loadedFragments });
+
+  // Check if every field in the FieldNode is also in the FragmentSpread
+  return Array.from(fieldSelections).every(fieldName => fragmentSelections.has(fieldName));
 }
