@@ -256,15 +256,15 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
             fragmentSuffix,
             possibleTypesForFragment.length === 1 ? null : possibleType.name
           );
-          console.log(
-            spread.name.value,
-            'fragmentSuffix',
-            fragmentSuffix,
-            'usage',
-            usage,
-            'possibleType.name',
-            possibleType.name
-          );
+          // console.log(
+          //   spread.name.value,
+          //   'fragmentSuffix',
+          //   fragmentSuffix,
+          //   'usage',
+          //   usage,
+          //   'possibleType.name',
+          //   possibleType.name
+          // );
 
           selectionNodesByTypeName[possibleType.name] ||= [];
 
@@ -422,7 +422,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
         );
 
         const { fields, interfaces } = this.buildSelectionSet(schemaType, selectionNodes, {
-          parentFieldName: parentName,
+          parentFieldName: `${parentName}_${typeName}`,
         });
         const transformedSet = this.selectionSetStringFromFields(fields);
 
@@ -664,19 +664,19 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       const selectionSet = this.createNext(realSelectedFieldType, field.selectionSet);
       const fieldName = field.alias?.value ?? field.name.value;
       // console.log('selections', field.selectionSet.selections);
-      // TODO: unless we're building a Fragment,
+      // TODO: unless we're building a Fragment, and that fragment is the only selection
       // do not transform named 'FragmentSpread's (they are already being transformed),
-      // just reference those types, or extend them (in case of combined InlineFragment or other selections) by making an interface X extends Y { ... }
+      // just reference those Fragment types instead
       const selectionSetObjects = selectionSet.transformSelectionSet(
         options.parentFieldName ? `${options.parentFieldName}_${fieldName}` : fieldName
       );
 
-      console.log(
-        'FragmentSpread',
-        field.selectionSet.selections.filter(s => s.kind === 'FragmentSpread'),
-        'name',
-        fieldName
-      );
+      // console.log(
+      //   'FragmentSpread',
+      //   field.selectionSet.selections.filter(s => s.kind === 'FragmentSpread'),
+      //   'name',
+      //   fieldName
+      // );
       linkFieldsInterfaces.push(...selectionSetObjects.interfaces);
       const isConditional = hasConditionalDirectives(field) || inlineFragmentConditional;
       const isOptional = options.unsetTypes;
