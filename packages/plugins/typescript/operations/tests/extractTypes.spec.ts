@@ -131,7 +131,7 @@ describe('ExtractTypes', () => {
 
         export interface OverlappingFieldsMergingTestQuery_Query {
           __typename: 'Query',
-          me?: Me | null
+          me?: MeFragment | null
         }
 
 
@@ -140,22 +140,9 @@ describe('ExtractTypes', () => {
 
         export type OverlappingFieldsMergingTestQuery = OverlappingFieldsMergingTestQuery_Query;
 
-        export interface NestedOverlappingFieldsMergingTestQuery_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface NestedOverlappingFieldsMergingTestQuery_me_ActiveUser {
-          __typename: 'ActiveUser',
-          isActive: boolean,
-          id: string,
-          joinDate: any
-        }
-
         export interface NestedOverlappingFieldsMergingTestQuery_Query {
           __typename: 'Query',
-          me?: NestedOverlappingFieldsMergingTestQuery_me_DummyUser | NestedOverlappingFieldsMergingTestQuery_me_ActiveUser | null
+          me?: MeFragment | null
         }
 
 
@@ -241,7 +228,7 @@ describe('ExtractTypes', () => {
 
         export interface OverlappingFieldsMergingTestQuery_Query {
           __typename: 'Query',
-          me?: Me | null
+          me?: MeFragment | null
         }
 
 
@@ -250,22 +237,9 @@ describe('ExtractTypes', () => {
 
         export type OverlappingFieldsMergingTestQuery = OverlappingFieldsMergingTestQuery_Query;
 
-        export interface NestedOverlappingFieldsMergingTestQuery_me_DummyUser {
-          __typename: 'DummyUser',
-          id: string,
-          joinDate: any
-        }
-
-        export interface NestedOverlappingFieldsMergingTestQuery_me_ActiveUser {
-          __typename: 'ActiveUser',
-          isActive: boolean,
-          id: string,
-          joinDate: any
-        }
-
         export interface NestedOverlappingFieldsMergingTestQuery_Query {
           __typename: 'Query',
-          me?: NestedOverlappingFieldsMergingTestQuery_me_DummyUser | NestedOverlappingFieldsMergingTestQuery_me_ActiveUser | null
+          me?: MeFragment | null
         }
 
 
