@@ -790,7 +790,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
   }
 
   // is this name accurate?
-  protected transformSelectionSetToInterfaces(fieldName: string): {
+  public transformSelectionSetToInterfaces(fieldName: string): {
     fragmentTypeName: string;
     interfaces: { name: string; content: string }[];
   } {
