@@ -26,7 +26,7 @@ import {
 import { RawConfig } from './base-visitor.js';
 import { parseMapper } from './mappers.js';
 import { DEFAULT_SCALARS } from './scalars.js';
-import { NormalizedScalarsMap, ParsedScalarsMap, ScalarsMap, FragmentDirectives } from './types.js';
+import { NormalizedScalarsMap, ParsedScalarsMap, ScalarsMap, FragmentDirectives, LoadedFragment } from './types.js';
 
 export const getConfigValue = <T = any>(value: T, defaultValue: T): T => {
   if (value === null || value === undefined) {
@@ -614,4 +614,128 @@ export function flatten<T>(array: Array<Array<T>>): Array<T> {
 
 export function unique<T>(array: Array<T>, key: (item: T) => string | number = item => item.toString()): Array<T> {
   return Object.values(array.reduce((acc, item) => ({ [key(item)]: item, ...acc }), {}));
+}
+
+function getFullPathFieldName(selection: FieldNode, parentName: string) {
+  const fullName =
+    'alias' in selection && selection.alias ? `${selection.alias.value}@${selection.name.value}` : selection.name.value;
+  return parentName ? `${parentName}.${fullName}` : fullName;
+}
+
+export const getFieldNames = (selectionSet: SelectionSetNode, fieldNames: Set<string>, parentName = '') => {
+  for (const selection of selectionSet.selections) {
+    switch (selection.kind) {
+      case Kind.FIELD: {
+        const fieldName = getFullPathFieldName(selection, parentName);
+        fieldNames.add(fieldName);
+        if (selection.selectionSet) {
+          getFieldNames(selection.selectionSet, fieldNames, fieldName);
+        }
+        break;
+      }
+      case Kind.INLINE_FRAGMENT: {
+        getFieldNames(selection.selectionSet, fieldNames, parentName);
+        break;
+      }
+    }
+  }
+};
+
+export function getDeeplyNestedFragmentSelectionSet({
+  selections,
+  // fragment,
+  fragmentFieldNames = new Set<string>(),
+  // fieldSelections,
+  parentName,
+  loadedFragments,
+}: {
+  selections: readonly SelectionNode[];
+  // fragment: string | InlineFragmentNode;
+  fragmentFieldNames?: Set<string>;
+  // fieldSelections: Set<string>;
+  parentName?: string | undefined;
+  loadedFragments: LoadedFragment[];
+}) {
+  for (const selection of selections) {
+    switch (selection.kind) {
+      case Kind.FIELD: {
+        const fieldName = getFullPathFieldName(selection, parentName);
+        // if (!fieldSelections.has(fieldName)) {
+        //   // optimization - do not expand fields that were not selected otherwise
+        //   return;
+        // }
+        // console.log('processing fieldName', fieldName);
+        fragmentFieldNames.add(fieldName);
+        if (selection.selectionSet) {
+          getDeeplyNestedFragmentSelectionSet({
+            selections: selection.selectionSet.selections,
+            fragmentFieldNames,
+            // fieldSelections,
+            parentName: fieldName,
+            loadedFragments,
+          });
+        }
+
+        break;
+      }
+      case Kind.FRAGMENT_SPREAD: {
+        getDeeplyNestedFragmentSelectionSet({
+          selections: loadedFragments
+            .filter(def => def.name === selection.name.value)
+            .flatMap(s => s.node.selectionSet.selections),
+          // fragment: selection.name.value,
+          fragmentFieldNames,
+          // fieldSelections,
+          parentName,
+          loadedFragments,
+        });
+        break;
+      }
+      case Kind.INLINE_FRAGMENT: {
+        getDeeplyNestedFragmentSelectionSet({
+          // fragment: selection,
+          selections: selection.selectionSet.selections,
+          fragmentFieldNames,
+          // fieldSelections,
+          parentName,
+          loadedFragments,
+        });
+        break;
+      }
+    }
+  }
+  return fragmentFieldNames;
+}
+
+// Check if every field in the FieldNode is also in the FragmentSpread
+export function isSelectionOverlapping({
+  selectionSet,
+  fragment,
+  loadedFragments,
+}: {
+  selectionSet: SelectionSetNode;
+  fragment: string;
+  loadedFragments: LoadedFragment[];
+}): boolean {
+  // Retrieve the selections from the FieldNode
+  const fieldSelections = new Set<string>();
+  getFieldNames(selectionSet, fieldSelections);
+
+  const fragmentDefSelections = loadedFragments.find(def => def.name === fragment)?.node.selectionSet.selections;
+
+  if (!fragmentDefSelections) {
+    throw new Error('Missing fragment definition');
+  }
+
+  // Retrieve the deeply nested selections from the FragmentSpread
+  const fragmentSelections = getDeeplyNestedFragmentSelectionSet({
+    selections: fragmentDefSelections,
+    // fieldSelections,
+    loadedFragments,
+  });
+
+  // id, isActive
+  // isActive, id
+  // Check if every field in the FieldNode is also in the FragmentSpread
+  return Array.from(fieldSelections).every(fieldName => fragmentSelections.has(fieldName));
 }

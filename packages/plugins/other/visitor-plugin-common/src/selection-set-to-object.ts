@@ -51,6 +51,7 @@ import {
   hasIncrementalDeliveryDirectives,
   mergeSelectionSets,
   separateSelectionSet,
+  isSelectionOverlapping,
 } from './utils.js';
 
 type FragmentSpreadUsage = {
@@ -73,6 +74,7 @@ const metadataFieldMap: Record<string, GraphQLField<any, any>> = {
   __type: TypeMetaFieldDef,
 };
 
+// todo: currently this is a global variable.
 // hash of selection to its typename
 const _typeCache = new Map<Location, string>();
 
@@ -255,20 +257,11 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
 
         for (const possibleType of possibleTypesForFragment) {
           const fragmentSuffix = this._getFragmentSuffix(spread.name.value);
-          const usage = this.buildFragmentTypeName(
+          const usage = this.buildFragmentTypeNameField(
             spread.name.value,
             fragmentSuffix,
             possibleTypesForFragment.length === 1 ? null : possibleType.name
           );
-          // console.log(
-          //   spread.name.value,
-          //   'fragmentSuffix',
-          //   fragmentSuffix,
-          //   'usage',
-          //   usage,
-          //   'possibleType.name',
-          //   possibleType.name
-          // );
 
           selectionNodesByTypeName[possibleType.name] ||= [];
 
@@ -675,7 +668,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       // TODO: unless we're building a Fragment, and that fragment is the only selection
       // do not transform named 'FragmentSpread's (they are already being transformed),
       // just reference those Fragment types instead
-      const selectionSetObjects = selectionSet.transformSelectionSet(
+      const selectionSetObjects = selectionSet.transformSelectionSetToInterfaces(
         options.parentFieldName ? `${options.parentFieldName}_${fieldName}` : fieldName
       );
 
@@ -693,7 +686,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
         name: this._processor.config.formatNamedField(field.name.value, selectedFieldType, isConditional, isOptional),
         type: realSelectedFieldType.name,
         selectionSet: this._processor.config.wrapTypeWithModifiers(
-          selectionSetObjects.mergedTypeString.split(`\n`).join(`\n  `),
+          selectionSetObjects.fragmentTypeName.split(`\n`).join(`\n  `),
           selectedFieldType
         ),
       });
@@ -796,14 +789,16 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     return mustAddEmptyObject ? ' | ' + this.getEmptyObjectType() : ``;
   }
 
-  public transformSelectionSet(fieldName: string): {
-    mergedTypeString: string;
+  // is this name accurate?
+  protected transformSelectionSetToInterfaces(fieldName: string): {
+    fragmentTypeName: string;
     interfaces: { name: string; content: string }[];
   } {
-    const prevType = _typeCache.get(this._selectionSet.loc);
-    if (prevType) {
+    // Optimization: Do not create new interfaces if fragment typename exists in cache
+    const cachedTypeName = _typeCache.get(this._selectionSet.loc);
+    if (cachedTypeName) {
       return {
-        mergedTypeString: prevType,
+        fragmentTypeName: cachedTypeName,
         interfaces: [],
       };
     }
@@ -814,17 +809,22 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
 
     // const hash = [, ...Array.from(listOfSelections)]
 
+    // Optimization: Do not create new interfaces if field only has one fragment spread.
+    // (how do I explain the interface was prev generated?
+    // Simply reuse the type of the fragment instead of regenerating the fragment
+    // type again.
     if (this._selectionSet.selections.length === 1 && this._selectionSet.selections[0].kind === Kind.FRAGMENT_SPREAD) {
-      // if the named fragment spread is the only thing selected,
-      // simply reuse the type of the fragment instead of regenerating the fragment type again
-      const fragmentName = this._selectionSet.selections[0].name.value;
-      const mergedTypeString = this.buildFragmentTypeName(fragmentName, this._getFragmentSuffix(fragmentName));
+      const partialFragmentName = this._selectionSet.selections[0].name.value;
+      const fragmentTypeName = this.buildFragmentTypeNameField(
+        partialFragmentName,
+        this._getFragmentSuffix(partialFragmentName)
+      );
 
       if (this._selectionSet.loc) {
-        _typeCache.set(this._selectionSet.loc, mergedTypeString);
+        _typeCache.set(this._selectionSet.loc, fragmentTypeName);
       }
       return {
-        mergedTypeString,
+        fragmentTypeName,
         interfaces: [],
       };
     }
@@ -832,22 +832,29 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     const allFragmentSpreads = this._selectionSet.selections.filter(
       (selection): selection is FragmentSpreadNode => selection.kind === Kind.FRAGMENT_SPREAD
     );
-    if (allFragmentSpreads.length === 1) {
-      const fragmentName = allFragmentSpreads[0].name.value;
+    const hasOnlyOneFragmentSpread = allFragmentSpreads.length === 1;
+    if (hasOnlyOneFragmentSpread) {
+      const partialFragmentName = allFragmentSpreads[0].name.value;
       // const fragmentNode = this._loadedFragments.find(def => def.name === fragmentName)?.node;
+
+      // Optimization: If all the field selections overlap with the fragment selection,
+      // don't generate a new object, return the previously generated fragment!
       if (
-        isFragmentSpreadOverlapping({
+        isSelectionOverlapping({
           selectionSet: this._selectionSet,
-          fragment: fragmentName,
+          fragment: partialFragmentName,
           loadedFragments: this._loadedFragments,
         })
       ) {
-        const mergedTypeString = this.buildFragmentTypeName(fragmentName, this._getFragmentSuffix(fragmentName));
+        const fragmentTypeName = this.buildFragmentTypeNameField(
+          partialFragmentName,
+          this._getFragmentSuffix(partialFragmentName)
+        );
         if (this._selectionSet.loc) {
-          _typeCache.set(this._selectionSet.loc, mergedTypeString);
+          _typeCache.set(this._selectionSet.loc, fragmentTypeName);
         }
         return {
-          mergedTypeString,
+          fragmentTypeName,
           interfaces: [],
         };
       }
@@ -860,8 +867,8 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     // build time as well.
     if (Object.keys(grouped).length === 0) {
       return {
+        fragmentTypeName: this.getUnknownType(),
         interfaces: ifaces,
-        mergedTypeString: this.getUnknownType(),
       };
     }
 
@@ -879,7 +886,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       })
       .filter(pairs => pairs.length > 0);
 
-    const mergedTypeString =
+    const fragmentTypeName =
       interfaces
         .map(pair => {
           const hasUnions = pair.filter(({ isUnion }) => isUnion).length > 0;
@@ -896,11 +903,11 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
         .join(' | ') + this.getEmptyObjectTypeString(mustAddEmptyObject);
 
     if (this._selectionSet.loc) {
-      _typeCache.set(this._selectionSet.loc, mergedTypeString);
+      _typeCache.set(this._selectionSet.loc, fragmentTypeName);
     }
 
     return {
-      mergedTypeString,
+      fragmentTypeName,
       interfaces: [...ifaces, ...interfaces.flat(1)],
     };
   }
@@ -910,13 +917,13 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     fragmentSuffix: string,
     declarationBlockConfig: DeclarationBlockConfig
   ): string {
-    const fragmentTypeName = this.buildFragmentTypeName(fragmentName, fragmentSuffix);
+    const fragmentTypeName = this.buildFragmentTypeNameField(fragmentName, fragmentSuffix);
     const { grouped, interfaces } = this._buildGroupedSelections(fragmentTypeName);
 
     const subTypes: { name: string; content: string }[] = Object.keys(grouped)
       .map(typeName => {
         const possibleFields = grouped[typeName].filter(Boolean);
-        const declarationName = this.buildFragmentTypeName(fragmentName, fragmentSuffix, typeName);
+        const declarationName = this.buildFragmentTypeNameField(fragmentName, fragmentSuffix, typeName);
 
         if (possibleFields.length === 0) {
           if (!this._config.addTypename) {
@@ -983,135 +990,10 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     ].join('\n');
   }
 
-  protected buildFragmentTypeName(name: string, suffix: string, typeName = ''): string {
+  protected buildFragmentTypeNameField(name: string, suffix: string, typeName = ''): string {
     return this._convertName(name, {
       useTypesPrefix: true,
       suffix: typeName && suffix ? `_${typeName}_${suffix}` : typeName ? `_${typeName}` : suffix,
     });
   }
-}
-
-function getFieldName(selection: FieldNode, parentName: string) {
-  const fullName =
-    'alias' in selection && selection.alias ? `${selection.alias.value}@${selection.name.value}` : selection.name.value;
-  return parentName ? `${parentName}.${fullName}` : fullName;
-}
-
-const getFieldNames = (selectionSet: SelectionSetNode, fieldNames: Set<string>, parentName = '') => {
-  for (const selection of selectionSet.selections) {
-    switch (selection.kind) {
-      case Kind.FIELD: {
-        const fieldName = getFieldName(selection, parentName);
-        fieldNames.add(fieldName);
-        if (selection.selectionSet) {
-          getFieldNames(selection.selectionSet, fieldNames, fieldName);
-        }
-        break;
-      }
-      case Kind.INLINE_FRAGMENT: {
-        getFieldNames(selection.selectionSet, fieldNames, parentName);
-        break;
-      }
-    }
-  }
-};
-
-function getExpandedFragmentSelections({
-  selections,
-  // fragment,
-  fragmentFieldNames = new Set<string>(),
-  // fieldSelections,
-  parentName,
-  loadedFragments,
-}: {
-  selections: readonly SelectionNode[];
-  // fragment: string | InlineFragmentNode;
-  fragmentFieldNames?: Set<string>;
-  // fieldSelections: Set<string>;
-  parentName?: string | undefined;
-  loadedFragments: LoadedFragment[];
-}) {
-  for (const selection of selections) {
-    switch (selection.kind) {
-      case Kind.FIELD: {
-        const fieldName = getFieldName(selection, parentName);
-        // if (!fieldSelections.has(fieldName)) {
-        //   // optimization - do not expand fields that were not selected otherwise
-        //   return;
-        // }
-        // console.log('processing fieldName', fieldName);
-        fragmentFieldNames.add(fieldName);
-        if (selection.selectionSet) {
-          getExpandedFragmentSelections({
-            selections: selection.selectionSet.selections,
-            fragmentFieldNames,
-            // fieldSelections,
-            parentName: fieldName,
-            loadedFragments,
-          });
-        }
-
-        break;
-      }
-      case Kind.FRAGMENT_SPREAD: {
-        getExpandedFragmentSelections({
-          selections: loadedFragments
-            .filter(def => def.name === selection.name.value)
-            .flatMap(s => s.node.selectionSet.selections),
-          // fragment: selection.name.value,
-          fragmentFieldNames,
-          // fieldSelections,
-          parentName,
-          loadedFragments,
-        });
-        break;
-      }
-      case Kind.INLINE_FRAGMENT: {
-        getExpandedFragmentSelections({
-          // fragment: selection,
-          selections: selection.selectionSet.selections,
-          fragmentFieldNames,
-          // fieldSelections,
-          parentName,
-          loadedFragments,
-        });
-        break;
-      }
-    }
-  }
-  return fragmentFieldNames;
-}
-
-function isFragmentSpreadOverlapping({
-  selectionSet,
-  fragment,
-  loadedFragments,
-}: {
-  selectionSet: SelectionSetNode;
-  fragment: string;
-  loadedFragments: LoadedFragment[];
-}): boolean {
-  // Retrieve the selections from the FieldNode
-  const fieldSelections = new Set<string>();
-  getFieldNames(selectionSet, fieldSelections);
-
-  // console.log({ fieldSelections, fragment });
-  const fragmentDefSelections = loadedFragments.find(def => def.name === fragment)?.node.selectionSet.selections;
-
-  if (!fragmentDefSelections) {
-    throw new Error('Missing fragment definition');
-  }
-
-  // Retrieve the fully expanded selections from the FragmentSpread
-  const fragmentSelections = getExpandedFragmentSelections({
-    selections: fragmentDefSelections,
-    // fieldSelections,
-    loadedFragments,
-  });
-
-  // id, isActive
-  // isActive, id
-
-  // Check if every field in the FieldNode is also in the FragmentSpread
-  return Array.from(fieldSelections).every(fieldName => fragmentSelections.has(fieldName));
 }

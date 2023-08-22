@@ -276,7 +276,7 @@ export class BaseDocumentsVisitor<
     );
     const operationType: string = pascalCase(node.operation);
     const operationTypeSuffix = this.getOperationSuffix(name, operationType);
-    const selectionSetObjects = selectionSet.transformSelectionSet(
+    const selectionSetObjects = selectionSet.transformSelectionSetToInterfaces(
       this.convertName(name, {
         suffix: operationTypeSuffix,
       })
@@ -290,7 +290,7 @@ export class BaseDocumentsVisitor<
           suffix: operationTypeSuffix + this._parsedConfig.operationResultSuffix,
         })
       )
-      .withContent(selectionSetObjects.mergedTypeString).string;
+      .withContent(selectionSetObjects.fragmentTypeName).string;
 
     const operationVariables = new DeclarationBlock({
       ...this._declarationBlockConfig,
