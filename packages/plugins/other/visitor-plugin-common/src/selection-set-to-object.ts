@@ -23,7 +23,6 @@ import {
   SelectionNode,
   SelectionSetNode,
   TypeMetaFieldDef,
-  Location,
 } from 'graphql';
 import { ParsedDocumentsConfig } from './base-documents-visitor.js';
 import { BaseVisitorConvertOptions } from './base-visitor.js';
@@ -73,10 +72,6 @@ const metadataFieldMap: Record<string, GraphQLField<any, any>> = {
   __schema: SchemaMetaFieldDef,
   __type: TypeMetaFieldDef,
 };
-
-// todo: currently this is a global variable.
-// hash of selection to its typename
-const _typeCache = new Map<Location, string>();
 
 export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedDocumentsConfig> {
   protected _primitiveFields: PrimitiveField[] = [];
@@ -257,7 +252,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
 
         for (const possibleType of possibleTypesForFragment) {
           const fragmentSuffix = this._getFragmentSuffix(spread.name.value);
-          const usage = this.buildFragmentTypeNameField(
+          const usage = this.buildFragmentTypeName(
             spread.name.value,
             fragmentSuffix,
             possibleTypesForFragment.length === 1 ? null : possibleType.name
@@ -392,25 +387,9 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
           }[];
         }>(
           (acc, node) => {
-            // if ('kind' in node && node.kind === Kind.FRAGMENT_SPREAD) {
-            //   // TODO: do we need FragmentSpreadUsage too?
-            //   acc.fragmentSpreads.push(node);
-            //   return acc;
-            // }
-            // if ('fragmentName' in node) {
             if ('fragmentDirectives' in node && hasIncrementalDeliveryDirectives(node.fragmentDirectives)) {
               acc.incrementalNodes.push(node);
-            }
-            // else {
-            //   const { fields: spreadFields, interfaces } = this.buildSelectionSet(schemaType, [node], {
-            //     parentFieldName: `${parentName}_${node.typeName}`,
-            //   });
-            //   const transformedSet = this.selectionSetStringFromFields(spreadFields);
-            //   acc.fragmentSpreads.push(transformedSet);
-            //   acc.interfaces.push(...interfaces);
-            // }
-            // }
-            else {
+            } else {
               acc.selectionNodes.push(node);
             }
             return acc;
@@ -423,18 +402,12 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
         const { fields, interfaces } = this.buildSelectionSet(schemaType, selectionNodes, {
           parentFieldName: excludedTopLevelTypes.includes(typeName) ? parentName : `${parentName}_${typeName}`,
         });
-        // SomeFragment_originatedFrom_EmailInteraction
-        // SomeFragment_originatedFrom_WebInteraction
         const transformedSet = this.selectionSetStringFromFields(fields);
 
         if (transformedSet) {
           prev[typeName].push(transformedSet);
           ifaces.push(...interfaces);
         }
-        // if (fragmentSpreads.length) {
-        //   prev[typeName].push(...fragmentSpreads);
-        //   ifaces.push(...fragmentInterfaces);
-        // }
         if (!transformedSet && !fragmentSpreads.length) {
           mustAddEmptyObject = true;
         }
@@ -664,20 +637,9 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       const realSelectedFieldType = getBaseType(selectedFieldType as any);
       const selectionSet = this.createNext(realSelectedFieldType, field.selectionSet);
       const fieldName = field.alias?.value ?? field.name.value;
-      // console.log('selections', field.selectionSet.selections);
-      // TODO: unless we're building a Fragment, and that fragment is the only selection
-      // do not transform named 'FragmentSpread's (they are already being transformed),
-      // just reference those Fragment types instead
-      const selectionSetObjects = selectionSet.transformSelectionSetToInterfaces(
+      const selectionSetObjects = selectionSet.transformSelectionSet(
         options.parentFieldName ? `${options.parentFieldName}_${fieldName}` : fieldName
       );
-
-      // console.log(
-      //   'FragmentSpread',
-      //   field.selectionSet.selections.filter(s => s.kind === 'FragmentSpread'),
-      //   'name',
-      //   fieldName
-      // );
       linkFieldsInterfaces.push(...selectionSetObjects.interfaces);
       const isConditional = hasConditionalDirectives(field) || inlineFragmentConditional;
       const isOptional = options.unsetTypes;
@@ -789,40 +751,36 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     return mustAddEmptyObject ? ' | ' + this.getEmptyObjectType() : ``;
   }
 
-  // is this name accurate?
-  public transformSelectionSetToInterfaces(fieldName: string): {
+  public transformSelectionSet(fieldName: string): {
     fragmentTypeName: string;
     interfaces: { name: string; content: string }[];
   } {
     // Optimization: Do not create new interfaces if fragment typename exists in cache
-    const cachedTypeName = _typeCache.get(this._selectionSet.loc);
+    const cachedTypeName = this._processor.typeCache.get(this._selectionSet.loc);
     if (cachedTypeName) {
       return {
         fragmentTypeName: cachedTypeName,
         interfaces: [],
       };
     }
-    // const listOfSelections = getExpandedFragmentSelections({
-    //   selections: this._selectionSet.selections,
-    //   loadedFragments: this._loadedFragments,
-    // })
+    return this.transformSelectionSetUncached(fieldName);
+  }
 
-    // const hash = [, ...Array.from(listOfSelections)]
-
+  private transformSelectionSetUncached(fieldName: string): {
+    fragmentTypeName: string;
+    interfaces: { name: string; content: string }[];
+  } {
     // Optimization: Do not create new interfaces if field only has one fragment spread.
     // (how do I explain the interface was prev generated?
     // Simply reuse the type of the fragment instead of regenerating the fragment
     // type again.
     if (this._selectionSet.selections.length === 1 && this._selectionSet.selections[0].kind === Kind.FRAGMENT_SPREAD) {
       const partialFragmentName = this._selectionSet.selections[0].name.value;
-      const fragmentTypeName = this.buildFragmentTypeNameField(
+      const fragmentTypeName = this.buildFragmentTypeName(
         partialFragmentName,
         this._getFragmentSuffix(partialFragmentName)
       );
 
-      if (this._selectionSet.loc) {
-        _typeCache.set(this._selectionSet.loc, fragmentTypeName);
-      }
       return {
         fragmentTypeName,
         interfaces: [],
@@ -846,13 +804,10 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
           loadedFragments: this._loadedFragments,
         })
       ) {
-        const fragmentTypeName = this.buildFragmentTypeNameField(
+        const fragmentTypeName = this.buildFragmentTypeName(
           partialFragmentName,
           this._getFragmentSuffix(partialFragmentName)
         );
-        if (this._selectionSet.loc) {
-          _typeCache.set(this._selectionSet.loc, fragmentTypeName);
-        }
         return {
           fragmentTypeName,
           interfaces: [],
@@ -902,10 +857,6 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
         .filter(Boolean)
         .join(' | ') + this.getEmptyObjectTypeString(mustAddEmptyObject);
 
-    if (this._selectionSet.loc) {
-      _typeCache.set(this._selectionSet.loc, fragmentTypeName);
-    }
-
     return {
       fragmentTypeName,
       interfaces: [...ifaces, ...interfaces.flat(1)],
@@ -917,13 +868,13 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     fragmentSuffix: string,
     declarationBlockConfig: DeclarationBlockConfig
   ): string {
-    const fragmentTypeName = this.buildFragmentTypeNameField(fragmentName, fragmentSuffix);
+    const fragmentTypeName = this.buildFragmentTypeName(fragmentName, fragmentSuffix);
     const { grouped, interfaces } = this._buildGroupedSelections(fragmentTypeName);
 
     const subTypes: { name: string; content: string }[] = Object.keys(grouped)
       .map(typeName => {
         const possibleFields = grouped[typeName].filter(Boolean);
-        const declarationName = this.buildFragmentTypeNameField(fragmentName, fragmentSuffix, typeName);
+        const declarationName = this.buildFragmentTypeName(fragmentName, fragmentSuffix, typeName);
 
         if (possibleFields.length === 0) {
           if (!this._config.addTypename) {
@@ -990,7 +941,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     ].join('\n');
   }
 
-  protected buildFragmentTypeNameField(name: string, suffix: string, typeName = ''): string {
+  protected buildFragmentTypeName(name: string, suffix: string, typeName = ''): string {
     return this._convertName(name, {
       useTypesPrefix: true,
       suffix: typeName && suffix ? `_${typeName}_${suffix}` : typeName ? `_${typeName}` : suffix,

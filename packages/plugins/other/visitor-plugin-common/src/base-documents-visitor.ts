@@ -276,7 +276,7 @@ export class BaseDocumentsVisitor<
     );
     const operationType: string = pascalCase(node.operation);
     const operationTypeSuffix = this.getOperationSuffix(name, operationType);
-    const selectionSetObjects = selectionSet.transformSelectionSetToInterfaces(
+    const selectionSetObjects = selectionSet.transformSelectionSet(
       this.convertName(name, {
         suffix: operationTypeSuffix,
       })
