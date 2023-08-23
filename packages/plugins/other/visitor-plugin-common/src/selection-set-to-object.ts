@@ -23,6 +23,7 @@ import {
   SelectionNode,
   SelectionSetNode,
   TypeMetaFieldDef,
+  // Location,
 } from 'graphql';
 import { ParsedDocumentsConfig } from './base-documents-visitor.js';
 import { BaseVisitorConvertOptions } from './base-visitor.js';
@@ -50,7 +51,7 @@ import {
   hasIncrementalDeliveryDirectives,
   mergeSelectionSets,
   separateSelectionSet,
-  isSelectionOverlapping,
+  // isSelectionOverlapping,
 } from './utils.js';
 
 type FragmentSpreadUsage = {
@@ -72,6 +73,9 @@ const metadataFieldMap: Record<string, GraphQLField<any, any>> = {
   __schema: SchemaMetaFieldDef,
   __type: TypeMetaFieldDef,
 };
+
+// TODO: not a global
+// const typeCache = new Map<Location, string>();
 
 export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedDocumentsConfig> {
   protected _primitiveFields: PrimitiveField[] = [];
@@ -755,15 +759,29 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     fragmentTypeName: string;
     interfaces: { name: string; content: string }[];
   } {
+    const possibleTypes = getPossibleTypes(this._schema, this._parentSchemaType)
+      .map(v => v.name)
+      .join('>');
+
+    // LOC => Type => cachedTypeName
+
     // Optimization: Do not create new interfaces if fragment typename exists in cache
-    const cachedTypeName = this._processor.typeCache.get(this._selectionSet.loc);
+    const objMap = this._processor.typeCache.get(this._selectionSet.loc) ?? new Map<string, string>();
+    this._processor.typeCache.set(this._selectionSet.loc, objMap);
+
+    const cachedTypeName = objMap.get(possibleTypes);
     if (cachedTypeName) {
       return {
         fragmentTypeName: cachedTypeName,
         interfaces: [],
       };
     }
-    return this.transformSelectionSetUncached(fieldName);
+    const result = this.transformSelectionSetUncached(fieldName);
+    objMap.set(possibleTypes, result.fragmentTypeName);
+    if (this._selectionSet.loc) {
+      this._processor.typeCache.set(this._selectionSet.loc, objMap);
+    }
+    return result;
   }
 
   private transformSelectionSetUncached(fieldName: string): {
@@ -774,46 +792,46 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     // (how do I explain the interface was prev generated?
     // Simply reuse the type of the fragment instead of regenerating the fragment
     // type again.
-    if (this._selectionSet.selections.length === 1 && this._selectionSet.selections[0].kind === Kind.FRAGMENT_SPREAD) {
-      const partialFragmentName = this._selectionSet.selections[0].name.value;
-      const fragmentTypeName = this.buildFragmentTypeName(
-        partialFragmentName,
-        this._getFragmentSuffix(partialFragmentName)
-      );
+    // if (this._selectionSet.selections.length === 1 && this._selectionSet.selections[0].kind === Kind.FRAGMENT_SPREAD) {
+    //   const partialFragmentName = this._selectionSet.selections[0].name.value;
+    //   const fragmentTypeName = this.buildFragmentTypeName(
+    //     partialFragmentName,
+    //     this._getFragmentSuffix(partialFragmentName)
+    //   );
 
-      return {
-        fragmentTypeName,
-        interfaces: [],
-      };
-    }
+    //   return {
+    //     fragmentTypeName,
+    //     interfaces: [],
+    //   };
+    // }
 
-    const allFragmentSpreads = this._selectionSet.selections.filter(
-      (selection): selection is FragmentSpreadNode => selection.kind === Kind.FRAGMENT_SPREAD
-    );
-    const hasOnlyOneFragmentSpread = allFragmentSpreads.length === 1;
-    if (hasOnlyOneFragmentSpread) {
-      const partialFragmentName = allFragmentSpreads[0].name.value;
-      // const fragmentNode = this._loadedFragments.find(def => def.name === fragmentName)?.node;
+    // const allFragmentSpreads = this._selectionSet.selections.filter(
+    //   (selection): selection is FragmentSpreadNode => selection.kind === Kind.FRAGMENT_SPREAD
+    // );
+    // const hasOnlyOneFragmentSpread = allFragmentSpreads.length === 1;
+    // if (hasOnlyOneFragmentSpread) {
+    //   const partialFragmentName = allFragmentSpreads[0].name.value;
+    //   // const fragmentNode = this._loadedFragments.find(def => def.name === fragmentName)?.node;
 
-      // Optimization: If all the field selections overlap with the fragment selection,
-      // don't generate a new object, return the previously generated fragment!
-      if (
-        isSelectionOverlapping({
-          selectionSet: this._selectionSet,
-          fragment: partialFragmentName,
-          loadedFragments: this._loadedFragments,
-        })
-      ) {
-        const fragmentTypeName = this.buildFragmentTypeName(
-          partialFragmentName,
-          this._getFragmentSuffix(partialFragmentName)
-        );
-        return {
-          fragmentTypeName,
-          interfaces: [],
-        };
-      }
-    }
+    //   // Optimization: If all the field selections overlap with the fragment selection,
+    //   // don't generate a new object, return the previously generated fragment!
+    //   if (
+    //     isSelectionOverlapping({
+    //       selectionSet: this._selectionSet,
+    //       fragment: partialFragmentName,
+    //       loadedFragments: this._loadedFragments,
+    //     })
+    //   ) {
+    //     const fragmentTypeName = this.buildFragmentTypeName(
+    //       partialFragmentName,
+    //       this._getFragmentSuffix(partialFragmentName)
+    //     );
+    //     return {
+    //       fragmentTypeName,
+    //       interfaces: [],
+    //     };
+    //   }
+    // }
 
     const { grouped, mustAddEmptyObject, interfaces: ifaces } = this._buildGroupedSelections(fieldName);
 

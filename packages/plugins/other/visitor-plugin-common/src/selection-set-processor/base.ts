@@ -25,7 +25,7 @@ export type SelectionSetProcessorConfig = {
 
 export class BaseSelectionSetProcessor<Config extends SelectionSetProcessorConfig> {
   // map of selection to its typename
-  typeCache = new Map<Location, string>();
+  typeCache = new Map<Location, Map<string, string>>();
 
   constructor(public config: Config) {}
 
