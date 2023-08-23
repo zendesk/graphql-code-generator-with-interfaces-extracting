@@ -45,6 +45,7 @@ import {
 import {
   DeclarationBlock,
   DeclarationBlockConfig,
+  getFieldNames,
   getFieldNodeNameValue,
   getPossibleTypes,
   hasConditionalDirectives,
@@ -761,7 +762,11 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
   } {
     const possibleTypes = getPossibleTypes(this._schema, this._parentSchemaType)
       .map(v => v.name)
-      .join('>');
+      .sort();
+
+    const fieldSelections = [...getFieldNames({ selectionSet: this._selectionSet })].sort();
+
+    const cacheHashKey = [...possibleTypes, '<', ...fieldSelections].join(',');
 
     // LOC => Type => cachedTypeName
 
@@ -769,15 +774,16 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     const objMap = this._processor.typeCache.get(this._selectionSet.loc) ?? new Map<string, string>();
     this._processor.typeCache.set(this._selectionSet.loc, objMap);
 
-    const cachedTypeName = objMap.get(possibleTypes);
+    const cachedTypeName = objMap.get(cacheHashKey);
     if (cachedTypeName) {
+      console.log('reusing', cachedTypeName.slice(0, 50), 'for', { fieldName, possibleTypes, fieldSelections });
       return {
         fragmentTypeName: cachedTypeName,
         interfaces: [],
       };
     }
     const result = this.transformSelectionSetUncached(fieldName);
-    objMap.set(possibleTypes, result.fragmentTypeName);
+    objMap.set(cacheHashKey, result.fragmentTypeName);
     if (this._selectionSet.loc) {
       this._processor.typeCache.set(this._selectionSet.loc, objMap);
     }

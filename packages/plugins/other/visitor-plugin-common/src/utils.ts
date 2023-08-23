@@ -622,23 +622,32 @@ function getFullPathFieldName(selection: FieldNode, parentName: string) {
   return parentName ? `${parentName}.${fullName}` : fullName;
 }
 
-export const getFieldNames = (selectionSet: SelectionSetNode, fieldNames: Set<string>, parentName = '') => {
+export const getFieldNames = ({
+  selectionSet,
+  fieldNames = new Set(),
+  parentName = '',
+}: {
+  selectionSet: SelectionSetNode;
+  fieldNames?: Set<string>;
+  parentName?: string;
+}) => {
   for (const selection of selectionSet.selections) {
     switch (selection.kind) {
       case Kind.FIELD: {
         const fieldName = getFullPathFieldName(selection, parentName);
         fieldNames.add(fieldName);
         if (selection.selectionSet) {
-          getFieldNames(selection.selectionSet, fieldNames, fieldName);
+          getFieldNames({ selectionSet: selection.selectionSet, fieldNames, parentName: fieldName });
         }
         break;
       }
       case Kind.INLINE_FRAGMENT: {
-        getFieldNames(selection.selectionSet, fieldNames, parentName);
+        getFieldNames({ selectionSet: selection.selectionSet, fieldNames, parentName });
         break;
       }
     }
   }
+  return fieldNames;
 };
 
 export function getDeeplyNestedFragmentSelectionSet({
@@ -718,8 +727,7 @@ export function isSelectionOverlapping({
   loadedFragments: LoadedFragment[];
 }): boolean {
   // Retrieve the selections from the FieldNode
-  const fieldSelections = new Set<string>();
-  getFieldNames(selectionSet, fieldSelections);
+  const fieldSelections = getFieldNames({ selectionSet });
 
   const fragmentDefSelections = loadedFragments.find(def => def.name === fragment)?.node.selectionSet.selections;
 
