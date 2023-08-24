@@ -619,12 +619,49 @@ describe('ExtractTypes', () => {
 
       export type ConvoLogOriginatedFromFragment = ConvoLogOriginatedFrom_EmailInteraction_Fragment | ConvoLogOriginatedFrom_ChannelAnyInteraction_Fragment | ConvoLogOriginatedFrom_TalkInteraction_Fragment | ConvoLogOriginatedFrom_NativeMessagingInteraction_Fragment | ConvoLogOriginatedFrom_WhatsAppInteraction_Fragment | ConvoLogOriginatedFrom_WeChatInteraction_Fragment | ConvoLogOriginatedFrom_NotImplementedOriginatedFrom_Fragment;
 
+      export interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_EmailInteraction {
+        __typename: 'EmailInteraction',
+        originalEmailURLPath: string
+      }
+
+      export interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_ChannelAnyInteraction {
+        __typename: 'ChannelAnyInteraction',
+        externalId: string,
+        timestamp: string,
+        resourceType: string
+      }
+
+      export interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_TalkInteraction {
+        __typename: 'TalkInteraction',
+        channel: string,
+        type: CallType
+      }
+
+      export interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_NativeMessagingInteraction {
+        __typename: 'NativeMessagingInteraction',
+        conversationId?: string | null
+      }
+
+      export interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_WhatsAppInteraction {
+        __typename: 'WhatsAppInteraction',
+        conversationId?: string | null
+      }
+
+      export interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_WeChatInteraction {
+        __typename: 'WeChatInteraction',
+        conversationId?: string | null
+      }
+
+      export interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_NotImplementedOriginatedFrom {
+        __typename: 'NotImplementedOriginatedFrom'
+      }
+
       export type ConvoLogTalkPublicCallSummaryFragment = {
         __typename: 'TalkPublicCallSummary',
         id: string,
         timestamp: string,
         summary: string,
-        originatedFrom: ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_EmailInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_ChannelAnyInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_TalkInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_NativeMessagingInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_WhatsAppInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_WeChatInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_NotImplementedOriginatedFrom
+        originatedFrom: ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_EmailInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_ChannelAnyInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_TalkInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_NativeMessagingInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_WhatsAppInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_WeChatInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_NotImplementedOriginatedFrom
       };
       "
     `);

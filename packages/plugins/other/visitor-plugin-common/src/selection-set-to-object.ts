@@ -760,30 +760,36 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     fragmentTypeName: string;
     interfaces: { name: string; content: string }[];
   } {
-    const possibleTypes = getPossibleTypes(this._schema, this._parentSchemaType)
-      .map(v => v.name)
-      .sort();
+    const possibleTypesList = getPossibleTypes(this._schema, this._parentSchemaType);
+    const possibleTypes = possibleTypesList.map(v => v.name).sort();
+    // possibleTypesList[0].getFields()
+    const fieldSelections = [
+      ...getFieldNames({ selections: this._selectionSet.selections, loadedFragments: this._loadedFragments }),
+    ].sort();
 
-    const fieldSelections = [...getFieldNames({ selectionSet: this._selectionSet })].sort();
-
-    const cacheHashKey = [...possibleTypes, '<', ...fieldSelections].join(',');
+    const cacheHashKey = `${fieldSelections.join(',')} @ ${possibleTypes.join('|')}`;
 
     // LOC => Type => cachedTypeName
 
     // Optimization: Do not create new interfaces if fragment typename exists in cache
-    const objMap = this._processor.typeCache.get(this._selectionSet.loc) ?? new Map<string, string>();
+    const objMap = this._processor.typeCache.get(this._selectionSet.loc) ?? new Map<string, [string, string]>();
     this._processor.typeCache.set(this._selectionSet.loc, objMap);
 
-    const cachedTypeName = objMap.get(cacheHashKey);
+    const [cachedTypeName, _otherFieldName] = objMap.get(cacheHashKey) ?? [];
     if (cachedTypeName) {
-      console.log('reusing', cachedTypeName.slice(0, 50), 'for', { fieldName, possibleTypes, fieldSelections });
+      // console.log('reusing', cachedTypeName.slice(0, 50), 'for', {
+      //   fieldName,
+      //   _otherFieldName,
+      //   possibleTypes,
+      //   fieldSelections,
+      // });
       return {
         fragmentTypeName: cachedTypeName,
         interfaces: [],
       };
     }
     const result = this.transformSelectionSetUncached(fieldName);
-    objMap.set(cacheHashKey, result.fragmentTypeName);
+    objMap.set(cacheHashKey, [result.fragmentTypeName, fieldName]);
     if (this._selectionSet.loc) {
       this._processor.typeCache.set(this._selectionSet.loc, objMap);
     }

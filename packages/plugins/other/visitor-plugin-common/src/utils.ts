@@ -623,26 +623,44 @@ function getFullPathFieldName(selection: FieldNode, parentName: string) {
 }
 
 export const getFieldNames = ({
-  selectionSet,
+  selections,
   fieldNames = new Set(),
   parentName = '',
+  loadedFragments,
 }: {
-  selectionSet: SelectionSetNode;
+  selections: readonly SelectionNode[];
   fieldNames?: Set<string>;
   parentName?: string;
+  loadedFragments: LoadedFragment[];
 }) => {
-  for (const selection of selectionSet.selections) {
+  for (const selection of selections) {
     switch (selection.kind) {
       case Kind.FIELD: {
         const fieldName = getFullPathFieldName(selection, parentName);
         fieldNames.add(fieldName);
         if (selection.selectionSet) {
-          getFieldNames({ selectionSet: selection.selectionSet, fieldNames, parentName: fieldName });
+          getFieldNames({
+            selections: selection.selectionSet.selections,
+            fieldNames,
+            parentName: fieldName,
+            loadedFragments,
+          });
         }
         break;
       }
+      case Kind.FRAGMENT_SPREAD: {
+        getFieldNames({
+          selections: loadedFragments
+            .filter(def => def.name === selection.name.value)
+            .flatMap(s => s.node.selectionSet.selections),
+          fieldNames,
+          parentName,
+          loadedFragments,
+        });
+        break;
+      }
       case Kind.INLINE_FRAGMENT: {
-        getFieldNames({ selectionSet: selection.selectionSet, fieldNames, parentName });
+        getFieldNames({ selections: selection.selectionSet.selections, fieldNames, parentName, loadedFragments });
         break;
       }
     }
@@ -727,7 +745,7 @@ export function isSelectionOverlapping({
   loadedFragments: LoadedFragment[];
 }): boolean {
   // Retrieve the selections from the FieldNode
-  const fieldSelections = getFieldNames({ selectionSet });
+  const fieldSelections = getFieldNames({ selections: selectionSet.selections, loadedFragments });
 
   const fragmentDefSelections = loadedFragments.find(def => def.name === fragment)?.node.selectionSet.selections;
 
