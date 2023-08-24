@@ -290,7 +290,7 @@ export class BaseDocumentsVisitor<
           suffix: operationTypeSuffix + this._parsedConfig.operationResultSuffix,
         })
       )
-      .withContent(selectionSetObjects.fragmentTypeName).string;
+      .withContent(selectionSetObjects.mergedTypeString).string;
 
     const operationVariables = new DeclarationBlock({
       ...this._declarationBlockConfig,
@@ -310,7 +310,7 @@ export class BaseDocumentsVisitor<
           i =>
             new DeclarationBlock(this._declarationBlockConfig)
               .export()
-              .asKind(this._parsedConfig.preResolveTypes ? 'interface' : 'type')
+              .asKind(this._parsedConfig.preResolveTypes && !i.isUnion ? 'interface' : 'type')
               .withName(i.name)
               .withContent(i.content).string
         )

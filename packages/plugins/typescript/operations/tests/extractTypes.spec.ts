@@ -125,6 +125,8 @@ describe('ExtractTypes', () => {
           joinDate: any
         }
 
+        export type MeFragment_ActiveUser_parentUser = MeFragment_ActiveUser_parentUser_DummyUser | MeFragment_ActiveUser_parentUser_ActiveUser;
+
         type Me_DummyUser_Fragment = {
           __typename: 'DummyUser',
           id: string,
@@ -136,7 +138,7 @@ describe('ExtractTypes', () => {
           isActive: boolean,
           id: string,
           joinDate: any,
-          parentUser: MeFragment_ActiveUser_parentUser_DummyUser | MeFragment_ActiveUser_parentUser_ActiveUser
+          parentUser: MeFragment_ActiveUser_parentUser
         };
 
         export type MeFragment = Me_DummyUser_Fragment | Me_ActiveUser_Fragment;
@@ -152,12 +154,14 @@ describe('ExtractTypes', () => {
           id: string,
           isActive: boolean,
           joinDate: any,
-          parentUser: MeFragment_ActiveUser_parentUser_DummyUser | MeFragment_ActiveUser_parentUser_ActiveUser
+          parentUser: MeFragment_ActiveUser_parentUser
         }
+
+        export type OverlappingFieldsMergingTestQuery_me = OverlappingFieldsMergingTestQuery_me_DummyUser | OverlappingFieldsMergingTestQuery_me_ActiveUser;
 
         export interface OverlappingFieldsMergingTestQuery_Query {
           __typename: 'Query',
-          me?: OverlappingFieldsMergingTestQuery_me_DummyUser | OverlappingFieldsMergingTestQuery_me_ActiveUser | null
+          me?: OverlappingFieldsMergingTestQuery_me | null
         }
 
 
@@ -177,12 +181,14 @@ describe('ExtractTypes', () => {
           isActive: boolean,
           id: string,
           joinDate: any,
-          parentUser: MeFragment_ActiveUser_parentUser_DummyUser | MeFragment_ActiveUser_parentUser_ActiveUser
+          parentUser: MeFragment_ActiveUser_parentUser
         }
+
+        export type NestedOverlappingFieldsMergingTestQuery_me = NestedOverlappingFieldsMergingTestQuery_me_DummyUser | NestedOverlappingFieldsMergingTestQuery_me_ActiveUser;
 
         export interface NestedOverlappingFieldsMergingTestQuery_Query {
           __typename: 'Query',
-          me?: NestedOverlappingFieldsMergingTestQuery_me_DummyUser | NestedOverlappingFieldsMergingTestQuery_me_ActiveUser | null
+          me?: NestedOverlappingFieldsMergingTestQuery_me | null
         }
 
 
@@ -195,7 +201,7 @@ describe('ExtractTypes', () => {
     });
   });
 
-  it.only('Should extract interfaces from multiple fragments', async () => {
+  it('Should extract interfaces from multiple fragments', async () => {
     const testSchema = buildSchema(/* GraphQL */ `
       #scalar Date
       #type Query {
@@ -466,25 +472,27 @@ describe('ExtractTypes', () => {
         __typename: 'NotImplementedOriginatedFrom'
       }
 
-      export type ConvoLogAnswerBotSolutionFragment = {
+      export type ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom = ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_EmailInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_ChannelAnyInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_TalkInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_NativeMessagingInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_WhatsAppInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_WeChatInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_NotImplementedOriginatedFrom;
+
+      export interface ConvoLogAnswerBotSolutionFragment {
         __typename: 'AnswerBotSolution',
         id: string,
         timestamp: string,
         article: ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_article_ArchivedArticle,
-        originatedFrom: ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_EmailInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_ChannelAnyInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_TalkInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_NativeMessagingInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_WhatsAppInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_WeChatInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_NotImplementedOriginatedFrom
-      };
+        originatedFrom: ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom
+      }
 
-      export type ConvoLogTalkGenericCallSummaryFragment = {
+      export interface ConvoLogTalkGenericCallSummaryFragment {
         __typename: 'TalkPublicCallSummary',
         id: string,
         summary: string
-      };
+      }
 
-      export type ConvoLogTalkInteractionFragment = {
+      export interface ConvoLogTalkInteractionFragment {
         __typename: 'TalkInteraction',
         channel: string,
         type: CallType
-      };
+      }
 
       export interface ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_EmailInteraction {
         __typename: 'EmailInteraction',
@@ -521,25 +529,27 @@ describe('ExtractTypes', () => {
         __typename: 'NotImplementedOriginatedFrom'
       }
 
+      export type ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom = ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_EmailInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_ChannelAnyInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_TalkInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_NativeMessagingInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_WhatsAppInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_WeChatInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_NotImplementedOriginatedFrom;
+
       type ConvoLogConversationEvent_BrokenConversationEvent_Fragment = {
         __typename: 'BrokenConversationEvent',
         id: string,
         timestamp: string,
-        originatedFrom: ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_EmailInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_ChannelAnyInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_TalkInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_NativeMessagingInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_WhatsAppInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_WeChatInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_NotImplementedOriginatedFrom
+        originatedFrom: ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom
       };
 
       type ConvoLogConversationEvent_AnswerBotSolution_Fragment = {
         __typename: 'AnswerBotSolution',
         id: string,
         timestamp: string,
-        originatedFrom: ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_EmailInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_ChannelAnyInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_TalkInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_NativeMessagingInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_WhatsAppInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_WeChatInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_NotImplementedOriginatedFrom
+        originatedFrom: ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom
       };
 
       type ConvoLogConversationEvent_TalkPublicCallSummary_Fragment = {
         __typename: 'TalkPublicCallSummary',
         id: string,
         timestamp: string,
-        originatedFrom: ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_EmailInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_ChannelAnyInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_TalkInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_NativeMessagingInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_WhatsAppInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_WeChatInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_NotImplementedOriginatedFrom
+        originatedFrom: ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom
       };
 
       export type ConvoLogConversationEventFragment = ConvoLogConversationEvent_BrokenConversationEvent_Fragment | ConvoLogConversationEvent_AnswerBotSolution_Fragment | ConvoLogConversationEvent_TalkPublicCallSummary_Fragment;
@@ -575,12 +585,12 @@ describe('ExtractTypes', () => {
 
       export type MessageEnvelopeDataFragment = MessageEnvelopeData_EmailInteraction_Fragment | MessageEnvelopeData_ChannelAnyInteraction_Fragment | MessageEnvelopeData_TalkInteraction_Fragment | MessageEnvelopeData_NativeMessagingInteraction_Fragment | MessageEnvelopeData_WhatsAppInteraction_Fragment | MessageEnvelopeData_WeChatInteraction_Fragment | MessageEnvelopeData_NotImplementedOriginatedFrom_Fragment;
 
-      export type AnyChannelOriginatedFromFragment = {
+      export interface AnyChannelOriginatedFromFragment {
         __typename: 'ChannelAnyInteraction',
         externalId: string,
         timestamp: string,
         resourceType: string
-      };
+      }
 
       type ConvoLogOriginatedFrom_EmailInteraction_Fragment = {
         __typename: 'EmailInteraction',
@@ -656,13 +666,15 @@ describe('ExtractTypes', () => {
         __typename: 'NotImplementedOriginatedFrom'
       }
 
-      export type ConvoLogTalkPublicCallSummaryFragment = {
+      export type ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom = ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_EmailInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_ChannelAnyInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_TalkInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_NativeMessagingInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_WhatsAppInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_WeChatInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_NotImplementedOriginatedFrom;
+
+      export interface ConvoLogTalkPublicCallSummaryFragment {
         __typename: 'TalkPublicCallSummary',
         id: string,
         timestamp: string,
         summary: string,
-        originatedFrom: ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_EmailInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_ChannelAnyInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_TalkInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_NativeMessagingInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_WhatsAppInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_WeChatInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_NotImplementedOriginatedFrom
-      };
+        originatedFrom: ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom
+      }
       "
     `);
 
