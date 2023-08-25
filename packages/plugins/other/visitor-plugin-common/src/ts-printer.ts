@@ -25,12 +25,18 @@ export type TypeScriptValue =
   | TypeScriptUnion
   | TypeScriptIntersection
   | TypeScriptTypeAlias
-  | TypeScriptInterface;
+  | TypeScriptInterface
+  | TypeScriptRawTypeReference
+  | TypeScriptTypeUsage;
 
 export type Statement = TypeScriptInterface | TypeScriptTypeAlias | TypeScriptEnum;
 
 abstract class TypeScriptPrintable {
   abstract print(indentation?: number): string;
+}
+
+abstract class TypeScriptStatement {
+  abstract printStatement(indentation?: number): string;
 }
 
 class TypeScriptCommentable {
@@ -90,7 +96,7 @@ export const TypeScriptPrimitiveFunction = new TypeScriptPrimitive({ primitive: 
 export const TypeScriptPrimitiveTrue = new TypeScriptPrimitive({ primitive: 'true' });
 export const TypeScriptPrimitiveFalse = new TypeScriptPrimitive({ primitive: 'false' });
 
-export class TypeScriptEnum extends TypeScriptCommentable implements TypeScriptPrintable {
+export class TypeScriptEnum extends TypeScriptCommentable implements TypeScriptPrintable, TypeScriptStatement {
   typeName: string;
   entries: { name: string; value?: string }[];
   export?: boolean;
@@ -115,7 +121,7 @@ export class TypeScriptEnum extends TypeScriptCommentable implements TypeScriptP
     return this;
   }
 
-  print(indentation = 0): string {
+  printStatement(indentation = 0): string {
     const indent = ' '.repeat(indentation);
     const indentEnumValue = ' '.repeat(indentation + 2);
     return `${this.printComment(indentation)}${indent}${this.export ? `export ` : ''}enum ${
@@ -124,23 +130,49 @@ export class TypeScriptEnum extends TypeScriptCommentable implements TypeScriptP
       .map(e => `${indentEnumValue}${e.name}${e.value ? ` = ${e.value}` : ''}`)
       .join(`,\n`)}\n${indent}}`;
   }
+
+  print(): string {
+    return this.typeName;
+  }
 }
 
 export class TypeScriptObjectProperty extends TypeScriptCommentable implements TypeScriptPrintable {
   propertyName: string;
   value: TypeScriptValue;
+  optional?: boolean;
+  readonly?: boolean;
 
-  constructor({ propertyName, value }: { propertyName: string; value: TypeScriptValue }) {
+  constructor({
+    propertyName,
+    value,
+    optional,
+    readonly,
+  }: {
+    propertyName: string;
+    value: TypeScriptValue;
+    optional?: boolean;
+    readonly?: boolean;
+  }) {
     super();
     this.propertyName = propertyName;
     this.value = value;
+    this.optional = optional;
+    this.readonly = readonly;
+  }
+
+  printPropertyName(): string {
+    // if this is a valid identifier, we can just print it as is
+    if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(this.propertyName)) {
+      return this.propertyName;
+    }
+    return `'${this.propertyName}'`;
   }
 
   print(indentation = 0): string {
     const indent = ' '.repeat(indentation);
-    return `${this.printComment(indentation)}${indent}${this.propertyName}: ${
-      'typeName' in this.value ? this.value.typeName : this.value.print(indentation)
-    }`;
+    return `${this.printComment(indentation)}${indent}${this.readonly ? 'readonly ' : ''}${this.printPropertyName()}${
+      this.optional ? '?' : ''
+    }: ${this.value.print(indentation)}`;
   }
 }
 
@@ -180,6 +212,9 @@ export class TypeScriptIntersection implements TypeScriptPrintable {
   }
 
   print(indentation = 0): string {
+    if (this.members.length === 1) {
+      return this.members[0].print(indentation);
+    }
     const flattenedProperties = this.members.flatMap(flattenProperties);
     if (flattenedProperties.every(m => m !== false)) {
       return this.printOptimizedIntersection(flattenedProperties as TypeScriptObjectProperty[], indentation);
@@ -227,13 +262,16 @@ export class TypeScriptUnion implements TypeScriptPrintable {
     return this;
   }
   print(indentation = 0): string {
+    if (this.members.length === 1) {
+      return this.members[0].print(indentation);
+    }
     return this.members
       .map(m => (m instanceof TypeScriptIntersection ? `( ${m.print(indentation)} )` : m.print(indentation)))
       .join(' | ');
   }
 }
 
-export class TypeScriptInterface extends TypeScriptCommentable implements TypeScriptPrintable {
+export class TypeScriptInterface extends TypeScriptCommentable implements TypeScriptPrintable, TypeScriptStatement {
   typeName: string;
   extends: TypeScriptInterface[];
   definition: TypeScriptObject;
@@ -257,35 +295,82 @@ export class TypeScriptInterface extends TypeScriptCommentable implements TypeSc
     return this;
   }
 
-  print(indentation = 0): string {
+  printStatement(indentation = 0): string {
     const indent = ' '.repeat(indentation);
     return `${this.printComment(indentation)}${indent}${this.export ? `export ` : ''}interface ${this.typeName}${
       this.extends.length > 0 ? ` extends ${this.extends.map(value => value.typeName).join(', ')}` : ''
     } ${this.definition.print(indentation)}`;
   }
+
+  print(): string {
+    return this.typeName;
+  }
 }
 
-export class TypeScriptTypeAlias extends TypeScriptCommentable implements TypeScriptPrintable {
+/**
+ * escape hatch for printing types that weren't constructed by ts-printer
+ */
+export class TypeScriptRawTypeReference implements TypeScriptPrintable {
   typeName: string;
-  target: TypeScriptValue;
-  export?: boolean;
-
-  constructor({ typeName, target, ...rest }: { typeName: string; target: TypeScriptValue; export?: boolean }) {
-    super();
+  constructor(typeName: string) {
     this.typeName = typeName;
-    this.target = target;
-    this.export = rest.export;
+  }
+  print(): string {
+    return this.typeName;
+  }
+}
+
+export class TypeScriptTypeUsage implements TypeScriptPrintable {
+  typeReference: TypeScriptTypeAlias | TypeScriptInterface | TypeScriptRawTypeReference;
+  typeArguments?: TypeScriptValue[];
+  propertyPath?: TypeScriptValue[];
+
+  constructor({
+    typeReference,
+    typeArguments,
+    propertyPath,
+  }: {
+    typeReference: TypeScriptTypeAlias | TypeScriptInterface | TypeScriptRawTypeReference;
+    typeArguments?: TypeScriptValue[];
+    propertyPath?: TypeScriptValue[];
+  }) {
+    this.typeReference = typeReference;
+    this.typeArguments = typeArguments;
+    this.propertyPath = propertyPath;
   }
 
   print(indentation = 0): string {
-    const indent = ' '.repeat(indentation);
-    return `${this.printComment(indentation)}${indent}${this.export ? `export ` : ''}type ${
-      this.typeName
-    } = ${this.target.print(indentation)}`;
+    const typeArguments = this.typeArguments ? `<${this.typeArguments.map(t => t.print(indentation)).join(', ')}>` : '';
+    const propertyPath = this.propertyPath ? `[${this.propertyPath.map(t => t.print(indentation)).join('][')}]` : '';
+    return `${this.typeReference.typeName}${typeArguments}${propertyPath}`;
   }
 }
 
-export class TypeScriptPrinter implements TypeScriptPrintable {
+export class TypeScriptTypeAlias extends TypeScriptCommentable implements TypeScriptPrintable, TypeScriptStatement {
+  typeName: string;
+  definition: TypeScriptValue;
+  export?: boolean;
+
+  constructor({ typeName, definition, ...rest }: { typeName: string; definition: TypeScriptValue; export?: boolean }) {
+    super();
+    this.typeName = typeName;
+    this.definition = definition;
+    this.export = rest.export;
+  }
+
+  printStatement(indentation = 0): string {
+    const indent = ' '.repeat(indentation);
+    return `${this.printComment(indentation)}${indent}${this.export ? `export ` : ''}type ${
+      this.typeName
+    } = ${this.definition.print(indentation)}`;
+  }
+
+  print(): string {
+    return this.typeName;
+  }
+}
+
+export class TypeScriptPrinter implements TypeScriptStatement {
   statements: Statement[];
 
   constructor({ statements }: { statements: Statement[] }) {
@@ -297,7 +382,7 @@ export class TypeScriptPrinter implements TypeScriptPrintable {
     return this;
   }
 
-  print(indentation = 0): string {
-    return this.statements.map(s => s.print(indentation)).join('\n\n');
+  printStatement(indentation = 0): string {
+    return this.statements.map(s => s.printStatement(indentation)).join('\n\n');
   }
 }

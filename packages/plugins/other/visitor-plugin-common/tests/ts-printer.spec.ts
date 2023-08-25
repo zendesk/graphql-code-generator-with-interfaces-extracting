@@ -135,16 +135,18 @@ describe('TypeScriptPrinter', () => {
       }),
       export: true,
     });
-    expect(interfaceObj.print()).toBe('export interface MyInterface extends BaseInterface {\n  prop: string\n}');
+    expect(interfaceObj.printStatement()).toBe(
+      'export interface MyInterface extends BaseInterface {\n  prop: string\n}'
+    );
   });
 
   test('should correctly print TypeScriptTypeAlias', () => {
     const typeAlias = new TypeScriptTypeAlias({
       typeName: 'MyType',
-      target: TypeScriptPrimitiveString,
+      definition: TypeScriptPrimitiveString,
       export: true,
     });
-    expect(typeAlias.print()).toBe('export type MyType = string');
+    expect(typeAlias.printStatement()).toBe('export type MyType = string');
   });
 
   test('should correctly print TypeScriptPrinter', () => {
@@ -152,7 +154,7 @@ describe('TypeScriptPrinter', () => {
       statements: [
         new TypeScriptTypeAlias({
           typeName: 'MyType',
-          target: TypeScriptPrimitiveString,
+          definition: TypeScriptPrimitiveString,
           export: true,
         }),
         new TypeScriptInterface({
@@ -170,7 +172,7 @@ describe('TypeScriptPrinter', () => {
         }),
       ],
     });
-    expect(printer.print()).toBe(
+    expect(printer.printStatement()).toBe(
       'export type MyType = string\n\nexport interface MyInterface extends BaseInterface {\n  prop: string\n}'
     );
   });
@@ -179,7 +181,7 @@ describe('TypeScriptPrinter', () => {
     test('should correctly print complex example with multi-level indentation', () => {
       const complexType = new TypeScriptTypeAlias({
         typeName: 'ComplexType',
-        target: new TypeScriptIntersection({
+        definition: new TypeScriptIntersection({
           members: [
             TypeScriptPrimitiveString,
             new TypeScriptUnion({
@@ -242,7 +244,7 @@ export enum ComplexEnum {
   B
 }`;
 
-      expect(printer.print()).toBe(expectedOutput);
+      expect(printer.printStatement()).toBe(expectedOutput);
     });
 
     test('should correctly print comments', () => {
@@ -273,7 +275,7 @@ export enum ComplexEnum {
 
       const commentType = new TypeScriptTypeAlias({
         typeName: 'CommentType',
-        target: TypeScriptPrimitiveString,
+        definition: TypeScriptPrimitiveString,
         export: true,
       }).withComment('This is a type alias\ncomment');
 
@@ -281,7 +283,7 @@ export enum ComplexEnum {
         statements: [commentType, commentInterface, commentEnum],
       });
 
-      expect(printer.print()).toMatchInlineSnapshot(`
+      expect(printer.printStatement()).toMatchInlineSnapshot(`
         "/**
          * This is a type alias
          * comment

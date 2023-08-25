@@ -290,7 +290,7 @@ export class BaseDocumentsVisitor<
           suffix: operationTypeSuffix + this._parsedConfig.operationResultSuffix,
         })
       )
-      .withContent(selectionSetObjects.mergedTypeString).string;
+      .withContent(selectionSetObjects.tsType).string;
 
     const operationVariables = new DeclarationBlock({
       ...this._declarationBlockConfig,

@@ -1,11 +1,17 @@
 import { GraphQLInterfaceType, GraphQLNamedType, GraphQLObjectType, GraphQLOutputType, Location } from 'graphql';
 import { AvoidOptionalsConfig, ConvertNameFn, NormalizedScalarsMap } from '../types.js';
+import { TypeScriptObject, TypeScriptObjectProperty, TypeScriptTypeUsage, TypeScriptValue } from '../ts-printer.js';
 
 export type PrimitiveField = { isConditional: boolean; fieldName: string };
 export type PrimitiveAliasedFields = { alias: string; fieldName: string };
-export type LinkField = { alias: string; name: string; type: string; selectionSet: string };
-export type NameAndType = { name: string; type: string };
-export type ProcessResult = null | Array<NameAndType | string>;
+export type LinkField = {
+  alias: string;
+  name: string;
+  type: string;
+  selectionSet: TypeScriptObject | TypeScriptTypeUsage;
+};
+export type NameAndType = TypeScriptObjectProperty;
+export type ProcessResult = null | Array<NameAndType | TypeScriptObject | TypeScriptTypeUsage>;
 
 export type SelectionSetProcessorConfig = {
   namespacedImportName: string | null;
@@ -24,12 +30,12 @@ export type SelectionSetProcessorConfig = {
 };
 
 export class BaseSelectionSetProcessor<Config extends SelectionSetProcessorConfig> {
-  typeCache = new Map<Location, Map<string, [string, string]>>();
+  typeCache = new Map<Location, Map<string, TypeScriptValue>>();
 
   constructor(public config: Config) {}
 
-  buildFieldsIntoObject(allObjectsMerged: string[]): string {
-    return `{\n  ${allObjectsMerged.join(',\n  ')}\n}`;
+  buildFieldsIntoObject(allObjectsMerged: TypeScriptObjectProperty[]) {
+    return new TypeScriptObject({ properties: allObjectsMerged });
   }
 
   buildSelectionSetFromStrings(pieces: string[]): string {
