@@ -255,7 +255,7 @@ export class BaseDocumentsVisitor<
         : undefined,
     ]
       .filter(r => r)
-      .join('\n\n');
+      .join('\n');
   }
 
   protected applyVariablesWrapper(variablesBlock: string): string {
@@ -305,12 +305,18 @@ export class BaseDocumentsVisitor<
       )
       .withBlock(visitedOperationVariables).string;
 
+    const typeRequired =
+      !this._parsedConfig.preResolveTypes ||
+      this._parsedConfig.mergeFragmentTypes ||
+      this._parsedConfig.inlineFragmentTypes !== 'inline';
+
+    // TODO: possibly this check isn't required here because dependentTypes should be empty when `extractAllTypes: false`
     const interfacesResult = this._parsedConfig.extractAllTypes
-      ? selectionSetObjects.interfaces.map(
+      ? selectionSetObjects.dependentTypes.map(
           i =>
             new DeclarationBlock(this._declarationBlockConfig)
               .export()
-              .asKind(this._parsedConfig.preResolveTypes && !i.isUnion ? 'interface' : 'type')
+              .asKind(typeRequired || i.isComplexType ? 'type' : 'interface')
               .withName(i.name)
               .withContent(i.content).string
         )
