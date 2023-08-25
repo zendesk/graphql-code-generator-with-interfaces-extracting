@@ -5,12 +5,14 @@ import {
   PrimitiveField,
   ProcessResult,
   SelectionSetProcessorConfig,
+  TypeNameProperty,
   TypeScriptObject,
   TypeScriptObjectProperty,
   TypeScriptRawTypeReference,
   TypeScriptStringLiteral,
   TypeScriptTypeUsage,
   TypeScriptUnion,
+  TypeScriptValue,
 } from '@graphql-codegen/visitor-plugin-common';
 import { GraphQLInterfaceType, GraphQLObjectType } from 'graphql';
 
@@ -89,11 +91,14 @@ export class TypeScriptSelectionSetProcessor extends BaseSelectionSetProcessor<S
     return [res];
   }
 
-  transformTypenameField(type: string, name: string): ProcessResult {
+  transformTypenameField(type: TypeScriptValue, name: string): ProcessResult {
     return [
       new TypeScriptObject({
         properties: [
-          new TypeScriptObjectProperty({ propertyName: name, value: new TypeScriptStringLiteral({ literal: type }) }),
+          new TypeNameProperty({
+            propertyName: name,
+            value: type,
+          }),
         ],
       }),
     ];

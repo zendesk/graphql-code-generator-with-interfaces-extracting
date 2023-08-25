@@ -27,7 +27,8 @@ export type TypeScriptValue =
   | TypeScriptTypeAlias
   | TypeScriptInterface
   | TypeScriptRawTypeReference
-  | TypeScriptTypeUsage;
+  | TypeScriptTypeUsage
+  | TypeNameProperty;
 
 export type Statement = TypeScriptInterface | TypeScriptTypeAlias | TypeScriptEnum;
 
@@ -174,6 +175,47 @@ export class TypeScriptObjectProperty extends TypeScriptCommentable implements T
       this.optional ? '?' : ''
     }: ${this.value.print(indentation)}`;
   }
+}
+
+// TODO: move out of this file
+export class TypeNameProperty extends TypeScriptObjectProperty {
+  constructor({
+    propertyName = '__typename',
+    ...rest
+  }: {
+    propertyName?: string;
+    value: TypeScriptValue;
+    optional?: boolean;
+    readonly?: boolean;
+  }) {
+    super({ propertyName, ...rest });
+  }
+
+  get typename(): string {
+    return this.value.print();
+  }
+
+  // private __typename: TypeScriptStringLiteral;
+  // get typename(): string {
+  //   return this.__typename.literal;
+  // }
+  // set typename(value: string) {
+  //   this.__typename = new TypeScriptStringLiteral({ literal: value });
+  // }
+
+  // constructor({
+  //   typename,
+  //   propertyName = '__typename',
+  //   optional,
+  // }: {
+  //   typename: string | string[];
+  //   propertyName?: string;
+  //   optional?: boolean;
+  // }) {
+  //   const value = new TypeScriptStringLiteral({ literal: typename });
+  //   super({ value, propertyName, optional });
+  //   this.__typename = value;
+  // }
 }
 
 export class TypeScriptObject implements TypeScriptPrintable {

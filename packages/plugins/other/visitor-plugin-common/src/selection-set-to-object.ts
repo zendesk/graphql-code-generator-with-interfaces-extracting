@@ -26,7 +26,7 @@ import {
   OperationTypeNode,
   // Location,
 } from 'graphql';
-import { ParsedDocumentsConfig } from './base-documents-visitor.js';
+import { DependentType, ParsedDocumentsConfig } from './base-documents-visitor.js';
 import { BaseVisitorConvertOptions } from './base-visitor.js';
 import {
   BaseSelectionSetProcessor,
@@ -35,6 +35,7 @@ import {
   PrimitiveAliasedFields,
   PrimitiveField,
   ProcessResult,
+  TSSelectionSet,
 } from './selection-set-processor/base.js';
 import {
   ConvertNameFn,
@@ -44,7 +45,6 @@ import {
   NormalizedScalarsMap,
 } from './types.js';
 import {
-  DeclarationBlock,
   DeclarationBlockConfig,
   getFieldNames,
   getFieldNodeNameValue,
@@ -55,7 +55,19 @@ import {
   separateSelectionSet,
   // isSelectionOverlapping,
 } from './utils.js';
-import { TypeScriptInterface, TypeScriptIntersection, TypeScriptObject, TypeScriptObjectProperty, TypeScriptPrimitiveNever, TypeScriptRawTypeReference, TypeScriptStringLiteral, TypeScriptTypeAlias, TypeScriptTypeUsage, TypeScriptUnion, TypeScriptValue } from './ts-printer.js';
+import {
+  TypeNameProperty,
+  TypeScriptIntersection,
+  TypeScriptObject,
+  TypeScriptObjectProperty,
+  TypeScriptPrimitiveNever,
+  TypeScriptRawTypeReference,
+  TypeScriptStringLiteral,
+  TypeScriptTypeAlias,
+  TypeScriptTypeUsage,
+  TypeScriptUnion,
+  TypeScriptValue,
+} from './ts-printer.js';
 
 type FragmentSpreadUsage = {
   fragmentName: string;
@@ -64,8 +76,6 @@ type FragmentSpreadUsage = {
   selectionNodes: Array<SelectionNode>;
   fragmentDirectives?: DirectiveNode[];
 };
-
-type DependentType = TypeScriptTypeAlias | TypeScriptIntersection | TypeScriptUnion | TypeScriptObject;
 
 type CollectedFragmentNode = (SelectionNode | FragmentSpreadUsage | DirectiveNode) & FragmentDirectives;
 type GroupedTypeScriptTypes = Record<string, Array<DependentType>>;
@@ -443,7 +453,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
           const initialSet = this.selectionSetStringFromFields(initialFields);
           const subsequentSet = this.selectionSetStringFromFields(subsequentFields);
           dependentTypes.push(...initialDependentTypes, ...subsequentDependentTypes);
-          prev[typeName].push({ union: [initialSet, subsequentSet] });
+          prev[typeName].push(new TypeScriptUnion({ members: [initialSet, subsequentSet] }));
         }
 
         return prev;
@@ -462,7 +472,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     //        shared: string;
     //      }
     const grouped = possibleTypes.reduce<
-      Record<string, { fields: (string | NameAndType)[]; types: { name: string; type: string }[] }>
+      Record<string, { fields: (TSSelectionSet | TypeScriptObjectProperty)[]; types: TypeNameProperty[] }>
     >((prev, type) => {
       const typeName = type.name;
       const schemaType = this._schema.getType(typeName);
@@ -482,10 +492,15 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       });
       dependentTypes.push(...subDependentTypes);
 
-      const key = this.selectionSetStringFromFields(fields);
+      const selectionSet = this.selectionSetStringFromFields(fields);
+      // TODO: is there a better way to group these?
+      const key = selectionSet.print();
       prev[key] = {
         fields,
-        types: [...(prev[key]?.types ?? []), typeInfo || { name: '', type: type.name }].filter(Boolean),
+        types: [
+          ...(prev[key]?.types ?? []),
+          typeInfo || new TypeNameProperty({ value: new TypeScriptRawTypeReference(type.name) }),
+        ].filter(Boolean),
       };
 
       return prev;
@@ -493,8 +508,8 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
 
     // For every distinct set of fields, create the corresponding
     // string literal union of typenames.
-    const compacted = Object.keys(grouped).reduce<Record<string, string[]>>((acc, key) => {
-      const typeNames = grouped[key].types.map(t => t.type);
+    const compacted = Object.keys(grouped).reduce<GroupedTypeScriptTypes>((acc, key) => {
+      const types = grouped[key].types;
       // Don't create very large string literal unions. TypeScript
       // will stop comparing some nested union types types when
       // they contain props with more than some number of string
@@ -502,10 +517,11 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       // at 25 for a naive test case:
       // https://www.typescriptlang.org/play?ts=4.5.4&ssl=29&ssc=10&pln=29&pc=1#code/C4TwDgpgBAKg9nAMgQwE4HNoF4BQV9QA+UA3ngRQJYB21EqAXDsQEQCMLzULATJ6wGZ+3ACzCWAVnEA2cQHZxADnEBOcWwAM6jl3Z9dbIQbEGpB2QYUHlBtbp5b7O1j30ujLky7Os4wABb0nAC+ODigkFAAQlBYUOT4xGQUVLT0TKzO3G7cHqLiPtwWrFasNqx2mY6ZWXrqeexe3GyF7MXNpc3lzZXZ1dm1ruI8DTxNvGahFEkJKTR0jLMpRNx+gaicy6E4APQ7AALAAM4AtJTo1HCoEDgANhDAUMgMsAgoGNikwQDcdw9QACMXjE4shfmEItAAGI0bCzGbLfDzdIGYbiBrjVrtFidFjdFi9dj9di1Ng5dgNNjjFrqbFsXFsfFsQkOYaDckjYbjNZBHDbPaHU7nS7XP6PZBsF4wuixL6-e6PAGS6KyiXfIA
       const max_types = 20;
-      for (let i = 0; i < typeNames.length; i += max_types) {
-        const selectedTypes = typeNames.slice(i, i + max_types);
-        const typenameUnion = grouped[key].types[0].name
-          ? this._processor.transformTypenameField(selectedTypes.join(' | '), grouped[key].types[0].name)
+      for (let i = 0; i < types.length; i += max_types) {
+        const selectedTypes = types.slice(i, i + max_types);
+        const firstTypename = grouped[key].types[0].typename;
+        const typenameUnion = firstTypename
+          ? this._processor.transformTypenameField(new TypeScriptUnion({ members: selectedTypes }), firstTypename)
           : [];
         const transformedSet = this.selectionSetStringFromFields([...typenameUnion, ...grouped[key].fields]);
 
@@ -518,9 +534,9 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
         acc[
           selectedTypes.length <= 3
             ? // Remove quote marks to produce a valid type name
-              selectedTypes.map(t => t.replace(/'/g, '')).join('_')
+              selectedTypes.map(t => t.typename.replace(/'/g, '')).join('_')
             : createHash('sha256')
-                .update(selectedTypes.join() || transformedSet || '')
+                .update(selectedTypes.map(t => t.typename).join() || transformedSet.print() || '')
                 // Remove invalid characters to produce a valid type name
                 .digest('base64')
                 .replace(/[=+/]/g, '')
@@ -532,14 +548,19 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     return { grouped: compacted, mustAddEmptyObject, dependentTypes };
   }
 
-  protected selectionSetStringFromFields(fields: (string | NameAndType)[]): string | null {
-    const allStrings = fields.filter((f: string | NameAndType): f is string => typeof f === 'string');
-    const allObjects = fields
-      .filter((f: string | NameAndType): f is NameAndType => typeof f !== 'string')
-      .map(t => new TypeScriptObjectProperty({propertyName: t.name, value: t.type}));
+  protected selectionSetStringFromFields(
+    fields: (NameAndType | TypeScriptObject | TypeScriptTypeUsage)[]
+  ): TypeScriptIntersection | TSSelectionSet | null {
+    const allTypes = fields.filter(
+      (f): f is TypeScriptObject | TypeScriptTypeUsage =>
+        f instanceof TypeScriptObject || f instanceof TypeScriptTypeUsage
+    );
+    const allObjectProperties = fields.filter((f): f is NameAndType => f instanceof TypeScriptObjectProperty);
 
-    const mergedObjects = allObjects.length ? this._processor.buildFieldsIntoObject(allObjects) : null;
-    const transformedSet = this._processor.buildSelectionSetFromStrings([...allStrings, mergedObjects].filter(Boolean));
+    const mergedObjects = allObjectProperties.length
+      ? this._processor.buildFieldsIntoObject(allObjectProperties)
+      : null;
+    const transformedSet = this._processor.buildSelectionSetFromStrings([...allTypes, mergedObjects]);
     return transformedSet;
   }
 
@@ -663,10 +684,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
         alias: field.alias ? this._processor.config.formatNamedField(field.alias.value, selectedFieldType) : undefined,
         name: this._processor.config.formatNamedField(field.name.value, selectedFieldType, isConditional, isOptional),
         type: realSelectedFieldType.name,
-        selectionSet: this._processor.config.wrapTypeWithModifiers(
-          selectionSetObjects.tsType,
-          selectedFieldType
-        ),
+        selectionSet: this._processor.config.wrapTypeWithModifiers(selectionSetObjects.tsType, selectedFieldType),
       });
     }
 
@@ -682,7 +700,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       // types. If we are merging, we need to wait until we know all
       // the involved typenames.
       ...(typeInfoField && (!this._config.mergeFragmentTypes || this._config.inlineFragmentTypes === 'mask')
-        ? this._processor.transformTypenameField(typeInfoField.type, typeInfoField.name)
+        ? this._processor.transformTypenameField(typeInfoField.value, typeInfoField.typename)
         : []),
       ...this._processor.transformPrimitiveFields(
         parentSchemaType,
@@ -716,16 +734,30 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
 
     if (fragmentsSpreadUsages.length) {
       if (this._config.inlineFragmentTypes === 'combine') {
-        fields.push(...fragmentsSpreadUsages.map((fragmentName) => new TypeScriptTypeUsage({ typeReference: new TypeScriptRawTypeReference(fragmentName) })));
+        fields.push(
+          ...fragmentsSpreadUsages.map(
+            fragmentName => new TypeScriptTypeUsage({ typeReference: new TypeScriptRawTypeReference(fragmentName) })
+          )
+        );
       } else if (this._config.inlineFragmentTypes === 'mask') {
         fields.push(
           new TypeScriptObjectProperty({
             propertyName: ' $fragmentRefs',
             optional: true,
             value: new TypeScriptObject({
-              properties: fragmentsSpreadUsages.map((fragmentName) =>
-                new TypeScriptObjectProperty({ propertyName: fragmentName, value: options.unsetTypes ? new TypeScriptTypeUsage({ typeReference: new TypeScriptRawTypeReference('Incremental'), typeArguments: [new TypeScriptRawTypeReference(fragmentName)] }) : new TypeScriptTypeUsage({ typeReference: new TypeScriptRawTypeReference(fragmentName) }) }))
-            })
+              properties: fragmentsSpreadUsages.map(
+                fragmentName =>
+                  new TypeScriptObjectProperty({
+                    propertyName: fragmentName,
+                    value: options.unsetTypes
+                      ? new TypeScriptTypeUsage({
+                          typeReference: new TypeScriptRawTypeReference('Incremental'),
+                          typeArguments: [new TypeScriptRawTypeReference(fragmentName)],
+                        })
+                      : new TypeScriptTypeUsage({ typeReference: new TypeScriptRawTypeReference(fragmentName) }),
+                  })
+              ),
+            }),
           })
         );
       }
@@ -740,7 +772,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     addTypename: boolean = this._config.addTypename,
     queriedForTypename: boolean = this._queriedForTypename,
     skipTypeNameForRoot: boolean = this._config.skipTypeNameForRoot
-  ) {
+  ): TypeNameProperty | null {
     const rootTypes = getRootTypes(this._schema);
     if (rootTypes.has(type) && skipTypeNameForRoot && !queriedForTypename) {
       return null;
@@ -748,10 +780,10 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
 
     if (nonOptionalTypename || addTypename || queriedForTypename) {
       const optionalTypename = !queriedForTypename && !nonOptionalTypename;
-      return new TypeScriptObjectProperty({
-        propertyName: `${this._processor.config.formatNamedField('__typename')}`,
+      return new TypeNameProperty({
+        value: new TypeScriptStringLiteral({ literal: type.name }),
+        propertyName: String(this._processor.config.formatNamedField('__typename')),
         optional: optionalTypename,
-        value: new TypeScriptStringLiteral({literal: type.name}),
       });
     }
 
@@ -770,7 +802,10 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     return mustAddEmptyObject ? this.getEmptyObjectType() : undefined;
   }
 
-  public transformSelectionSet(fieldName: string) {
+  public transformSelectionSet(fieldName: string): {
+    tsType: TypeScriptValue;
+    dependentTypes: DependentType[];
+  } {
     const possibleTypesList = getPossibleTypes(this._schema, this._parentSchemaType);
     const possibleTypes = possibleTypesList.map(v => v.name).sort();
     const fieldSelections = [
@@ -784,7 +819,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     const objMap = this._processor.typeCache.get(this._selectionSet.loc) ?? new Map<string, TypeScriptValue>();
     this._processor.typeCache.set(this._selectionSet.loc, objMap);
 
-    const cachedTypeName = objMap.get(cacheHashKey) ?? [];
+    const cachedTypeName = objMap.get(cacheHashKey);
     if (cachedTypeName) {
       return {
         tsType: cachedTypeName,
@@ -802,7 +837,6 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
   private transformSelectionSetUncached(fieldName: string): {
     tsType: TypeScriptValue;
     dependentTypes: DependentType[];
-    isComplexType?: boolean;
   } {
     const { grouped, mustAddEmptyObject, dependentTypes: subDependentTypes } = this._buildGroupedSelections(fieldName);
 
@@ -821,14 +855,19 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
         const relevant = grouped[typeName].filter(Boolean);
         return relevant.map(objDefinition => {
           const name = fieldName ? `${fieldName}_${typeName}` : typeName;
-          return new TypeScriptObjectProperty({propertyName: name, value: objDefinition});
+          // TODO: introduce a new class that can be either an interface or a type alias
+          return new TypeScriptTypeAlias({ typeName: name, definition: objDefinition });
         });
       })
       .filter(pairs => pairs.length > 0);
 
     const typeParts = [
       ...dependentTypes.map(pair => {
-        return new TypeScriptIntersection({members: this._config.extractAllTypes ? pair : pair.map((p) => 'definition' in p ? p.definition : p))
+        return new TypeScriptIntersection({
+          members: this._config.extractAllTypes ? pair : pair.map(p => ('definition' in p ? p.definition : p)),
+        });
+        // return new TypeScriptObject({properties: pair})
+
         // const hasUnions = pair.filter(({ isComplexType }) => isComplexType).length > 0;
         // isComplexType ||= hasUnions;
 
@@ -844,11 +883,11 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       this.getEmptyObjectTypeIfTrue(mustAddEmptyObject),
     ].filter(Boolean);
 
-    const content = new TypeScriptUnion({members: typeParts});
+    const content = new TypeScriptUnion({ members: typeParts });
     const tsType = new TypeScriptTypeAlias({
       typeName: fieldName,
       definition: content,
-    })
+    });
 
     return {
       tsType,
@@ -857,18 +896,23 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
   }
 
   private makeFragmentNameMaskObject(name: string) {
-    return this._config.inlineFragmentTypes === 'mask' ? new TypeScriptObject({
-      properties: [new TypeScriptObjectProperty({
-      propertyName: ' $fragmentName',
-      optional: true,
-      value: new TypeScriptStringLiteral({literal: name}),
-    })]}) : undefined;
+    return this._config.inlineFragmentTypes === 'mask'
+      ? new TypeScriptObject({
+          properties: [
+            new TypeScriptObjectProperty({
+              propertyName: ' $fragmentName',
+              optional: true,
+              value: new TypeScriptStringLiteral({ literal: name }),
+            }),
+          ],
+        })
+      : undefined;
   }
 
   public transformFragmentSelectionSetToTypes(
     fragmentName: string,
     fragmentSuffix: string,
-    declarationBlockConfig: DeclarationBlockConfig
+    _declarationBlockConfig: DeclarationBlockConfig
   ): DependentType[] {
     const fragmentTypeName = this.buildFragmentTypeName(fragmentName, fragmentSuffix);
     const { grouped, dependentTypes } = this._buildGroupedSelections(fragmentTypeName);
@@ -877,25 +921,24 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       const possibleFields = grouped[typeName].filter(Boolean);
       const declarationName = this.buildFragmentTypeName(fragmentName, fragmentSuffix, typeName);
       if (possibleFields.length === 0) {
-        if (!this._config.addTypename) {
-          possibleFields.push(
-            this.getEmptyObjectType()
-          )
-        } else {
+        if (this._config.addTypename) {
           return [];
         }
+        possibleFields.push(this.getEmptyObjectType());
       }
 
       const content = new TypeScriptIntersection({
-        members: [...possibleFields, this.makeFragmentNameMaskObject(declarationName)].filter(Boolean)
+        members: [...possibleFields, this.makeFragmentNameMaskObject(declarationName)].filter(Boolean),
       });
-      return [new TypeScriptTypeAlias({
-        typeName: declarationName,
-        definition: content,
-      })];
+      return [
+        new TypeScriptTypeAlias({
+          typeName: declarationName,
+          definition: content,
+        }),
+      ];
     });
 
-    const fragmentMaskPartial = this.makeFragmentNameMaskObject(fragmentName)
+    const fragmentMaskPartial = this.makeFragmentNameMaskObject(fragmentName);
 
     // const typeRequired =
     //   !this._config.preResolveTypes || this._config.mergeFragmentTypes || this._config.inlineFragmentTypes !== 'inline';
@@ -906,7 +949,9 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
         ...dependentTypes,
         new TypeScriptTypeAlias({
           typeName: fragmentTypeName,
-          definition: fragmentMaskPartial ? new TypeScriptIntersection({members: [subTypes[0].definition, fragmentMaskPartial]}) : subTypes[0].definition,
+          definition: fragmentMaskPartial
+            ? new TypeScriptIntersection({ members: [subTypes[0].definition, fragmentMaskPartial] })
+            : subTypes[0].definition,
         }),
       ];
     }
@@ -918,7 +963,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       ...subTypes,
       new TypeScriptTypeAlias({
         typeName: fragmentTypeName,
-        definition: new TypeScriptUnion({members: subTypes.map(t => t.definition)}),
+        definition: new TypeScriptUnion({ members: subTypes.map(t => t.definition) }),
         export: true,
       }),
     ];

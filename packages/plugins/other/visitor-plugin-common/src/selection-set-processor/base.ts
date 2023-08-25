@@ -1,9 +1,16 @@
 import { GraphQLInterfaceType, GraphQLNamedType, GraphQLObjectType, GraphQLOutputType, Location } from 'graphql';
 import { AvoidOptionalsConfig, ConvertNameFn, NormalizedScalarsMap } from '../types.js';
-import { TypeScriptObject, TypeScriptObjectProperty, TypeScriptTypeUsage, TypeScriptValue } from '../ts-printer.js';
+import {
+  TypeScriptIntersection,
+  TypeScriptObject,
+  TypeScriptObjectProperty,
+  TypeScriptTypeUsage,
+  TypeScriptValue,
+} from '../ts-printer.js';
 
 export type PrimitiveField = { isConditional: boolean; fieldName: string };
 export type PrimitiveAliasedFields = { alias: string; fieldName: string };
+export type TSSelectionSet = TypeScriptObject | TypeScriptTypeUsage;
 export type LinkField = {
   alias: string;
   name: string;
@@ -11,7 +18,7 @@ export type LinkField = {
   selectionSet: TypeScriptObject | TypeScriptTypeUsage;
 };
 export type NameAndType = TypeScriptObjectProperty;
-export type ProcessResult = null | Array<NameAndType | TypeScriptObject | TypeScriptTypeUsage>;
+export type ProcessResult = null | Array<NameAndType | TSSelectionSet>;
 
 export type SelectionSetProcessorConfig = {
   namespacedImportName: string | null;
@@ -38,14 +45,14 @@ export class BaseSelectionSetProcessor<Config extends SelectionSetProcessorConfi
     return new TypeScriptObject({ properties: allObjectsMerged });
   }
 
-  buildSelectionSetFromStrings(pieces: string[]): string {
+  buildSelectionSetFromStrings(pieces: TSSelectionSet[]) {
     if (pieces.length === 0) {
       return null;
     }
     if (pieces.length === 1) {
       return pieces[0];
     }
-    return `(\n  ${pieces.join(`\n  & `)}\n)`;
+    return new TypeScriptIntersection({ members: pieces });
   }
 
   transformPrimitiveFields(
@@ -72,7 +79,8 @@ export class BaseSelectionSetProcessor<Config extends SelectionSetProcessorConfi
     throw new Error(`Please override "transformLinkFields" as part of your BaseSelectionSetProcessor implementation!`);
   }
 
-  transformTypenameField(_type: string, _name: string): ProcessResult {
+  transformTypenameField(_type: TypeScriptValue, _name: string): ProcessResult {
+    // TODO: what about optionality? it's not being accounted for when this is used
     throw new Error(
       `Please override "transformTypenameField" as part of your BaseSelectionSetProcessor implementation!`
     );

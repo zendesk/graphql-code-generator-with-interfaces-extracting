@@ -9,19 +9,25 @@ import {
   SelectionSetProcessorConfig,
 } from './base.js';
 import {
+  TypeNameProperty,
   TypeScriptObjectProperty,
   TypeScriptPrimitiveNever,
   TypeScriptRawTypeReference,
   TypeScriptStringLiteral,
+  TypeScriptValue,
 } from '../ts-printer.js';
 
 export class PreResolveTypesProcessor extends BaseSelectionSetProcessor<SelectionSetProcessorConfig> {
-  transformTypenameField(type: string, name: string): ProcessResult {
+  transformTypenameField(type: TypeScriptValue, name: string): ProcessResult {
     return [
-      new TypeScriptObjectProperty({
+      new TypeNameProperty({
         propertyName: name,
-        value: new TypeScriptRawTypeReference(type),
+        value: type,
       }),
+      // new TypeScriptObjectProperty({
+      //   propertyName: name,
+      //   value: new TypeScriptRawTypeReference(type),
+      // }),
     ];
   }
 

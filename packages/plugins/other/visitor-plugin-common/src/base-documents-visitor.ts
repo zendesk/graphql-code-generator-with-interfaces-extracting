@@ -14,6 +14,10 @@ import { SelectionSetToObject } from './selection-set-to-object.js';
 import { NormalizedScalarsMap } from './types.js';
 import { buildScalarsFromConfig, DeclarationBlock, DeclarationBlockConfig, getConfigValue } from './utils.js';
 import { OperationVariablesToObject } from './variables-to-object.js';
+import { TypeScriptIntersection, TypeScriptTypeAlias, TypeScriptUnion } from './ts-printer.js';
+import { TSSelectionSet } from './selection-set-processor/base.js';
+
+export type DependentType = TypeScriptTypeAlias | TypeScriptIntersection | TypeScriptUnion | TSSelectionSet;
 
 function getRootType(operation: OperationTypeNode, schema: GraphQLSchema) {
   switch (operation) {
@@ -238,7 +242,10 @@ export class BaseDocumentsVisitor<
     const selectionSet = this._selectionSetToObject.createNext(fragmentRootType, node.selectionSet);
     const fragmentSuffix = this.getFragmentSuffix(node);
     return [
-      selectionSet.transformFragmentSelectionSetToTypes(node.name.value, fragmentSuffix, this._declarationBlockConfig),
+      selectionSet
+        .transformFragmentSelectionSetToTypes(node.name.value, fragmentSuffix, this._declarationBlockConfig)
+        .map(printDependentType)
+        .join('\n'),
       this.config.experimentalFragmentVariables
         ? new DeclarationBlock({
             ...this._declarationBlockConfig,
@@ -282,15 +289,22 @@ export class BaseDocumentsVisitor<
       })
     );
 
-    const operationResult = new DeclarationBlock(this._declarationBlockConfig)
-      .export()
-      .asKind('type')
-      .withName(
-        this.convertName(name, {
-          suffix: operationTypeSuffix + this._parsedConfig.operationResultSuffix,
-        })
-      )
-      .withContent(selectionSetObjects.tsType).string;
+    const operationResult = new TypeScriptTypeAlias({
+      typeName: this.convertName(name, {
+        suffix: operationTypeSuffix + this._parsedConfig.operationResultSuffix,
+      }),
+      definition: selectionSetObjects.tsType,
+      export: true,
+    });
+
+    // TODO: convert operationVariables ??
+    // const operationVariables = new TypeScriptTypeAlias({
+    //   typeName: this.convertName(name, {
+    //     suffix: operationTypeSuffix + 'Variables',
+    //   }),
+    //   definition: visitedOperationVariables,
+    //   export: true,
+    // });
 
     const operationVariables = new DeclarationBlock({
       ...this._declarationBlockConfig,
@@ -305,23 +319,31 @@ export class BaseDocumentsVisitor<
       )
       .withBlock(visitedOperationVariables).string;
 
-    const typeRequired =
-      !this._parsedConfig.preResolveTypes ||
-      this._parsedConfig.mergeFragmentTypes ||
-      this._parsedConfig.inlineFragmentTypes !== 'inline';
+    // const typeRequired =
+    //   !this._parsedConfig.preResolveTypes ||
+    //   this._parsedConfig.mergeFragmentTypes ||
+    //   this._parsedConfig.inlineFragmentTypes !== 'inline';
 
     // TODO: possibly this check isn't required here because dependentTypes should be empty when `extractAllTypes: false`
-    const interfacesResult = this._parsedConfig.extractAllTypes
-      ? selectionSetObjects.dependentTypes.map(
-          i =>
-            new DeclarationBlock(this._declarationBlockConfig)
-              .export()
-              .asKind(typeRequired || i.isComplexType ? 'type' : 'interface')
-              .withName(i.name)
-              .withContent(i.content).string
-        )
-      : [];
+    // const interfacesResult = this._parsedConfig.extractAllTypes
+    //   ? selectionSetObjects.dependentTypes.map(
+    //       i =>
+    //         new DeclarationBlock(this._declarationBlockConfig)
+    //           .export()
+    //           .asKind(typeRequired || i.isComplexType ? 'type' : 'interface')
+    //           .withName(i.name)
+    //           .withContent(i.content).string
+    //     )
+    //   : [];
 
-    return [interfacesResult.join('\n'), operationVariables, operationResult].filter(r => r).join('\n\n');
+    const interfacesResult = this._parsedConfig.extractAllTypes ? selectionSetObjects.dependentTypes : [];
+
+    return [interfacesResult.map(printDependentType).join('\n'), operationVariables, operationResult.printStatement()]
+      .filter(r => r)
+      .join('\n\n');
   }
+}
+
+function printDependentType(i: DependentType): string {
+  return 'printStatement' in i ? i.printStatement() : `// something wrong here\n${i.print()}`;
 }
