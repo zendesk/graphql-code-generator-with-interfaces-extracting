@@ -23,6 +23,7 @@ import {
   SelectionNode,
   SelectionSetNode,
   TypeMetaFieldDef,
+  // Location,
 } from 'graphql';
 import { ParsedDocumentsConfig } from './base-documents-visitor.js';
 import { BaseVisitorConvertOptions } from './base-visitor.js';
@@ -43,12 +44,15 @@ import {
 } from './types.js';
 import {
   DeclarationBlock,
+  DeclarationBlockConfig,
+  getFieldNames,
   getFieldNodeNameValue,
   getPossibleTypes,
   hasConditionalDirectives,
   hasIncrementalDeliveryDirectives,
   mergeSelectionSets,
   separateSelectionSet,
+  // isSelectionOverlapping,
 } from './utils.js';
 
 type FragmentSpreadUsage = {
@@ -70,6 +74,9 @@ const metadataFieldMap: Record<string, GraphQLField<any, any>> = {
   __schema: SchemaMetaFieldDef,
   __type: TypeMetaFieldDef,
 };
+
+// TODO: not a global
+// const typeCache = new Map<Location, string>();
 
 export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedDocumentsConfig> {
   protected _primitiveFields: PrimitiveField[] = [];
@@ -233,6 +240,11 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     };
   }
 
+  /**
+   * The `buildFragmentSpreadsUsage` method is used to collect fields from fragment spreads in the selection set.
+   * It creates a record of fragment spread usages, which includes the fragment name, type name, and the selection nodes
+   * inside the fragment.
+   */
   protected buildFragmentSpreadsUsage(spreads: FragmentSpreadNode[]): Record<string, FragmentSpreadUsage[]> {
     const selectionNodesByTypeName: Record<string, FragmentSpreadUsage[]> = {};
 
@@ -245,7 +257,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
 
         for (const possibleType of possibleTypesForFragment) {
           const fragmentSuffix = this._getFragmentSuffix(spread.name.value);
-          const usage = this.buildFragmentTypeName(
+          const usage = this.buildmergedTypeString(
             spread.name.value,
             fragmentSuffix,
             possibleTypesForFragment.length === 1 ? null : possibleType.name
@@ -267,6 +279,10 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     return selectionNodesByTypeName;
   }
 
+  /**
+   * The `flattenSelectionSet` method is used to flatten the selection set into a map where each key is a type name and
+   * the value is an array of selection nodes that apply to that type. It handles inline fragments and fragment spreads.
+   */
   protected flattenSelectionSet(
     selections: ReadonlyArray<SelectionNode>,
     parentSchemaType?: GraphQLObjectType<any, any>
@@ -324,11 +340,19 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
   }
 
   /**
+   * The `_buildGroupedSelections` method is used to group selection sets by the type they apply to.
+   * It handles different scenarios such as fields, inline fragments, and fragment spreads. It also takes into account
+   * directives such as @defer.
+   *
    * mustAddEmptyObject indicates that not all possible types on a union or interface field are covered.
    */
-  protected _buildGroupedSelections(): { grouped: GroupedStringifiedTypes; mustAddEmptyObject: boolean } {
+  protected _buildGroupedSelections(parentName: string): {
+    grouped: GroupedStringifiedTypes;
+    interfaces: { name: string; content: string; isUnion?: boolean }[];
+    mustAddEmptyObject: boolean;
+  } {
     if (!this._selectionSet?.selections || this._selectionSet.selections.length === 0) {
-      return { grouped: {}, mustAddEmptyObject: true };
+      return { grouped: {}, mustAddEmptyObject: true, interfaces: [] };
     }
 
     const selectionNodesByTypeName = this.flattenSelectionSet(this._selectionSet.selections);
@@ -338,6 +362,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
 
     const possibleTypes = getPossibleTypes(this._schema, this._parentSchemaType);
 
+    const ifaces: { name: string; content: string; isUnion?: boolean }[] = [];
     if (!this._config.mergeFragmentTypes || this._config.inlineFragmentTypes === 'mask') {
       const grouped = possibleTypes.reduce<GroupedStringifiedTypes>((prev, type) => {
         const typeName = type.name;
@@ -351,9 +376,11 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
 
         prev[typeName] ||= [];
 
-        const { incrementalNodes, selectionNodes } = allNodes.reduce<{
+        // incrementalNodes are the ones flagged with @defer, meaning they become nullable I guess?
+        const { incrementalNodes, selectionNodes, fragmentSpreads } = allNodes.reduce<{
           selectionNodes: (SelectionNode | FragmentSpreadUsage)[];
           incrementalNodes: FragmentSpreadUsage[];
+          fragmentSpreads: string[];
         }>(
           (acc, node) => {
             if ('fragmentDirectives' in node && hasIncrementalDeliveryDirectives(node.fragmentDirectives)) {
@@ -363,15 +390,21 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
             }
             return acc;
           },
-          { selectionNodes: [], incrementalNodes: [] }
+          { selectionNodes: [], incrementalNodes: [], fragmentSpreads: [] }
         );
 
-        const { fields } = this.buildSelectionSet(schemaType, selectionNodes);
-
+        // TODO: use a shared constant (I think it might be in config somewhere?)
+        const excludedTopLevelTypes = ['Query', 'Mutation', 'Subscription'];
+        const { fields, interfaces } = this.buildSelectionSet(schemaType, selectionNodes, {
+          parentFieldName: excludedTopLevelTypes.includes(typeName) ? parentName : `${parentName}_${typeName}`,
+        });
         const transformedSet = this.selectionSetStringFromFields(fields);
+
         if (transformedSet) {
           prev[typeName].push(transformedSet);
-        } else {
+          ifaces.push(...interfaces);
+        }
+        if (!transformedSet && !fragmentSpreads.length) {
           mustAddEmptyObject = true;
         }
 
@@ -379,14 +412,18 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
           if (this._config.inlineFragmentTypes === 'mask' && 'fragmentName' in incrementalNode) {
             const { fields: incrementalFields } = this.buildSelectionSet(schemaType, [incrementalNode], {
               unsetTypes: true,
+              parentFieldName: parentName,
             });
             prev[typeName].push(this.selectionSetStringFromFields(incrementalFields));
 
             continue;
           }
-          const { fields: initialFields } = this.buildSelectionSet(schemaType, [incrementalNode]);
+          const { fields: initialFields } = this.buildSelectionSet(schemaType, [incrementalNode], {
+            parentFieldName: parentName,
+          });
           const { fields: subsequentFields } = this.buildSelectionSet(schemaType, [incrementalNode], {
             unsetTypes: true,
+            parentFieldName: parentName,
           });
 
           const initialSet = this.selectionSetStringFromFields(initialFields);
@@ -398,7 +435,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
         return prev;
       }, {});
 
-      return { grouped, mustAddEmptyObject };
+      return { grouped, mustAddEmptyObject, interfaces: ifaces };
     }
     // Accumulate a map of selected fields to the typenames that
     // share the exact same selected fields. When we find multiple
@@ -422,7 +459,10 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
 
       const selectionNodes = selectionNodesByTypeName.get(typeName) || [];
 
-      const { typeInfo, fields } = this.buildSelectionSet(schemaType, selectionNodes);
+      const { typeInfo, fields, interfaces } = this.buildSelectionSet(schemaType, selectionNodes, {
+        parentFieldName: parentName,
+      });
+      ifaces.push(...interfaces);
 
       const key = this.selectionSetStringFromFields(fields);
       prev[key] = {
@@ -471,7 +511,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       return acc;
     }, {});
 
-    return { grouped: compacted, mustAddEmptyObject };
+    return { grouped: compacted, mustAddEmptyObject, interfaces: ifaces };
   }
 
   protected selectionSetStringFromFields(fields: (string | NameAndType)[]): string | null {
@@ -487,7 +527,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
   protected buildSelectionSet(
     parentSchemaType: GraphQLObjectType,
     selectionNodes: Array<SelectionNode | FragmentSpreadUsage | DirectiveNode>,
-    options?: { unsetTypes: boolean }
+    options: { unsetTypes?: boolean; parentFieldName?: string }
   ) {
     const primitiveFields = new Map<string, FieldNode>();
     const primitiveAliasFields = new Map<string, FieldNode>();
@@ -588,17 +628,23 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     }
 
     const linkFields: LinkField[] = [];
+    const linkFieldsInterfaces: { name: string; content: string; isUnion?: boolean }[] = [];
     for (const { field, selectedFieldType } of linkFieldSelectionSets.values()) {
       const realSelectedFieldType = getBaseType(selectedFieldType as any);
       const selectionSet = this.createNext(realSelectedFieldType, field.selectionSet);
+      const fieldName = field.alias?.value ?? field.name.value;
+      const selectionSetObjects = selectionSet.transformSelectionSet(
+        options.parentFieldName ? `${options.parentFieldName}_${fieldName}` : fieldName
+      );
+      linkFieldsInterfaces.push(...selectionSetObjects.interfaces);
       const isConditional = hasConditionalDirectives(field) || inlineFragmentConditional;
-      const isOptional = options?.unsetTypes;
+      const isOptional = options.unsetTypes;
       linkFields.push({
         alias: field.alias ? this._processor.config.formatNamedField(field.alias.value, selectedFieldType) : undefined,
         name: this._processor.config.formatNamedField(field.name.value, selectedFieldType, isConditional, isOptional),
         type: realSelectedFieldType.name,
         selectionSet: this._processor.config.wrapTypeWithModifiers(
-          selectionSet.transformSelectionSet().split(`\n`).join(`\n  `),
+          selectionSetObjects.mergedTypeString.split(`\n`).join(`\n  `),
           selectedFieldType
         ),
       });
@@ -624,7 +670,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
           isConditional: hasConditionalDirectives(field),
           fieldName: field.name.value,
         })),
-        options?.unsetTypes
+        options.unsetTypes
       ),
       ...this._processor.transformAliasesPrimitiveFields(
         parentSchemaType,
@@ -632,9 +678,9 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
           alias: field.alias.value,
           fieldName: field.name.value,
         })),
-        options?.unsetTypes
+        options.unsetTypes
       ),
-      ...this._processor.transformLinkFields(linkFields, options?.unsetTypes),
+      ...this._processor.transformLinkFields(linkFields, options.unsetTypes),
     ].filter(Boolean);
 
     const allStrings: string[] = transformed.filter(t => typeof t === 'string') as string[];
@@ -657,13 +703,13 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       } else if (this._config.inlineFragmentTypes === 'mask') {
         fields.push(
           `{ ' $fragmentRefs'?: { ${fragmentsSpreadUsages
-            .map(name => `'${name}': ${options?.unsetTypes ? `Incremental<${name}>` : name}`)
+            .map(name => `'${name}': ${options.unsetTypes ? `Incremental<${name}>` : name}`)
             .join(`;`)} } }`
         );
       }
     }
 
-    return { typeInfo: typeInfoField, fields };
+    return { typeInfo: typeInfoField, fields, interfaces: linkFieldsInterfaces };
   }
 
   protected buildTypeNameField(
@@ -698,55 +744,167 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
   }
 
   private getEmptyObjectTypeString(mustAddEmptyObject: boolean): string {
-    return mustAddEmptyObject ? ' | ' + this.getEmptyObjectType() : ``;
+    return mustAddEmptyObject ? this.getEmptyObjectType() : ``;
   }
 
-  public transformSelectionSet(): string {
-    const { grouped, mustAddEmptyObject } = this._buildGroupedSelections();
+  public transformSelectionSet(fieldName: string): {
+    mergedTypeString: string;
+    interfaces: { name: string; content: string; isUnion?: boolean }[];
+  } {
+    const possibleTypesList = getPossibleTypes(this._schema, this._parentSchemaType);
+    const possibleTypes = possibleTypesList.map(v => v.name).sort();
+    // possibleTypesList[0].getFields()
+    const fieldSelections = [
+      ...getFieldNames({ selections: this._selectionSet.selections, loadedFragments: this._loadedFragments }),
+    ].sort();
+
+    const cacheHashKey = `${fieldSelections.join(',')} @ ${possibleTypes.join('|')}`;
+
+    // LOC => Type => cachedTypeName
+
+    // Optimization: Do not create new interfaces if fragment typename exists in cache
+    const objMap = this._processor.typeCache.get(this._selectionSet.loc) ?? new Map<string, [string, string]>();
+    this._processor.typeCache.set(this._selectionSet.loc, objMap);
+
+    const [cachedTypeName, _otherFieldName] = objMap.get(cacheHashKey) ?? [];
+    if (cachedTypeName) {
+      // console.log('reusing', cachedTypeName.slice(0, 50), 'for', {
+      //   fieldName,
+      //   _otherFieldName,
+      //   possibleTypes,
+      //   fieldSelections,
+      // });
+      return {
+        mergedTypeString: cachedTypeName,
+        interfaces: [],
+      };
+    }
+    const result = this.transformSelectionSetUncached(fieldName);
+    objMap.set(cacheHashKey, [result.mergedTypeString, fieldName]);
+    if (this._selectionSet.loc) {
+      this._processor.typeCache.set(this._selectionSet.loc, objMap);
+    }
+    return result;
+  }
+
+  private transformSelectionSetUncached(fieldName: string): {
+    mergedTypeString: string;
+    interfaces: { name: string; content: string; isUnion?: boolean }[];
+  } {
+    // TODO: this optimization is incorrect
+    // Optimization: Do not create new interfaces if field only has one fragment spread.
+    // (how do I explain the interface was prev generated?
+    // Simply reuse the type of the fragment instead of regenerating the fragment
+    // type again.
+    // if (this._selectionSet.selections.length === 1 && this._selectionSet.selections[0].kind === Kind.FRAGMENT_SPREAD) {
+    //   const partialFragmentName = this._selectionSet.selections[0].name.value;
+    //   const mergedTypeString = this.buildmergedTypeString(
+    //     partialFragmentName,
+    //     this._getFragmentSuffix(partialFragmentName)
+    //   );
+
+    //   return {
+    //     mergedTypeString,
+    //     interfaces: [],
+    //   };
+    // }
+
+    // const allFragmentSpreads = this._selectionSet.selections.filter(
+    //   (selection): selection is FragmentSpreadNode => selection.kind === Kind.FRAGMENT_SPREAD
+    // );
+    // const hasOnlyOneFragmentSpread = allFragmentSpreads.length === 1;
+    // if (hasOnlyOneFragmentSpread) {
+    //   const partialFragmentName = allFragmentSpreads[0].name.value;
+    //   // const fragmentNode = this._loadedFragments.find(def => def.name === fragmentName)?.node;
+
+    //   // Optimization: If all the field selections overlap with the fragment selection,
+    //   // don't generate a new object, return the previously generated fragment!
+    //   if (
+    //     isSelectionOverlapping({
+    //       selectionSet: this._selectionSet,
+    //       fragment: partialFragmentName,
+    //       loadedFragments: this._loadedFragments,
+    //     })
+    //   ) {
+    //     const mergedTypeString = this.buildmergedTypeString(
+    //       partialFragmentName,
+    //       this._getFragmentSuffix(partialFragmentName)
+    //     );
+    //     return {
+    //       mergedTypeString,
+    //       interfaces: [],
+    //     };
+    //   }
+    // }
+
+    const { grouped, mustAddEmptyObject, interfaces: ifaces } = this._buildGroupedSelections(fieldName);
 
     // This might happen in case we have an interface, that is being queries, without any GraphQL
     // "type" that implements it. It will lead to a runtime error, but we aim to try to reflect that in
     // build time as well.
     if (Object.keys(grouped).length === 0) {
-      return this.getUnknownType();
+      return {
+        mergedTypeString: this.getUnknownType(),
+        interfaces: ifaces,
+      };
     }
 
-    return (
-      Object.keys(grouped)
-        .map(typeName => {
-          const hasUnions = grouped[typeName].filter(s => typeof s !== 'string' && s.union).length > 0;
-          const relevant = grouped[typeName].filter(Boolean);
+    const interfaces = Object.keys(grouped)
+      .map(typeName => {
+        const relevant = grouped[typeName].filter(Boolean);
+        return relevant.map(objDefinition => {
+          const name = fieldName ? `${fieldName}_${typeName}` : typeName;
+          return {
+            name,
+            content: typeof objDefinition === 'string' ? objDefinition : '(' + objDefinition.union.join(' | ') + ')',
+            isUnion: !!(typeof objDefinition !== 'string' && objDefinition.union),
+          };
+        });
+      })
+      .filter(pairs => pairs.length > 0);
 
-          if (relevant.length === 0) {
-            return null;
-          }
+    const typeParts = [
+      ...interfaces.map(pair => {
+        const hasUnions = pair.filter(({ isUnion }) => isUnion).length > 0;
 
-          const res = relevant
-            .map(selectionObject => {
-              if (typeof selectionObject === 'string') return selectionObject;
+        let res: string;
+        if (pair.length === 1) {
+          res = this._config.extractAllTypes ? pair[0].name : pair[0].content;
+        } else {
+          res = pair.map(({ name, content }) => (this._config.extractAllTypes ? name : content)).join(' & ');
+        }
+        return hasUnions ? `( ${res} )` : res;
+      }),
+      this.getEmptyObjectTypeString(mustAddEmptyObject),
+    ].filter(Boolean);
 
-              return '(' + selectionObject.union.join(' | ') + ')';
-            })
-            .join(' & ');
+    const content = typeParts.join(' | ');
 
-          return relevant.length > 1 && !hasUnions ? `( ${res} )` : res;
-        })
-        .filter(Boolean)
-        .join(' | ') + this.getEmptyObjectTypeString(mustAddEmptyObject)
-    );
+    if (typeParts.length > 1) {
+      return {
+        mergedTypeString: fieldName,
+        interfaces: [...ifaces, ...interfaces.flat(1), { name: fieldName, content, isUnion: true }],
+      };
+    }
+
+    return {
+      mergedTypeString: content,
+      interfaces: [...ifaces, ...interfaces.flat(1)],
+    };
   }
 
   public transformFragmentSelectionSetToTypes(
     fragmentName: string,
     fragmentSuffix: string,
-    declarationBlockConfig
+    declarationBlockConfig: DeclarationBlockConfig
   ): string {
-    const { grouped } = this._buildGroupedSelections();
+    const mergedTypeString = this.buildmergedTypeString(fragmentName, fragmentSuffix);
+    const { grouped, interfaces } = this._buildGroupedSelections(mergedTypeString);
 
     const subTypes: { name: string; content: string }[] = Object.keys(grouped)
       .map(typeName => {
         const possibleFields = grouped[typeName].filter(Boolean);
-        const declarationName = this.buildFragmentTypeName(fragmentName, fragmentSuffix, typeName);
+        const declarationName = this.buildmergedTypeString(fragmentName, fragmentSuffix, typeName);
 
         if (possibleFields.length === 0) {
           if (!this._config.addTypename) {
@@ -768,18 +926,32 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       })
       .filter(Boolean);
 
-    const fragmentTypeName = this.buildFragmentTypeName(fragmentName, fragmentSuffix);
     const fragmentMaskPartial =
-      this._config.inlineFragmentTypes === 'mask' ? ` & { ' $fragmentName'?: '${fragmentTypeName}' }` : '';
+      this._config.inlineFragmentTypes === 'mask' ? ` & { ' $fragmentName'?: '${mergedTypeString}' }` : '';
+
+    // TODO: unify with line 308 from base-documents-visitor
+    const interfacesContent = interfaces.map(
+      t =>
+        new DeclarationBlock(declarationBlockConfig)
+          .export(true)
+          .asKind(t.isUnion ? 'type' : 'interface')
+          .withName(t.name)
+          .withContent(t.content).string
+    );
+
     if (subTypes.length === 1) {
-      return new DeclarationBlock(declarationBlockConfig)
-        .export()
-        .asKind('type')
-        .withName(fragmentTypeName)
-        .withContent(subTypes[0].content + fragmentMaskPartial).string;
+      return [
+        ...interfacesContent,
+        new DeclarationBlock(declarationBlockConfig)
+          .export()
+          .asKind(fragmentMaskPartial ? 'type' : 'interface')
+          .withName(mergedTypeString)
+          .withContent(subTypes[0].content + fragmentMaskPartial).string,
+      ].join('\n');
     }
 
     return [
+      ...interfacesContent,
       ...subTypes.map(
         t =>
           new DeclarationBlock(declarationBlockConfig)
@@ -795,15 +967,15 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       new DeclarationBlock(declarationBlockConfig)
         .export()
         .asKind('type')
-        .withName(fragmentTypeName)
+        .withName(mergedTypeString)
         .withContent(subTypes.map(t => t.name).join(' | ')).string,
     ].join('\n');
   }
 
-  protected buildFragmentTypeName(name: string, suffix: string, typeName = ''): string {
+  protected buildmergedTypeString(name: string, suffix: string, typeName = ''): string {
     return this._convertName(name, {
       useTypesPrefix: true,
-      suffix: typeName ? `_${typeName}_${suffix}` : suffix,
+      suffix: typeName && suffix ? `_${typeName}_${suffix}` : typeName ? `_${typeName}` : suffix,
     });
   }
 }

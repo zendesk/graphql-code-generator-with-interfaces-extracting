@@ -1,4 +1,4 @@
-import { GraphQLInterfaceType, GraphQLNamedType, GraphQLObjectType, GraphQLOutputType } from 'graphql';
+import { GraphQLInterfaceType, GraphQLNamedType, GraphQLObjectType, GraphQLOutputType, Location } from 'graphql';
 import { AvoidOptionalsConfig, ConvertNameFn, NormalizedScalarsMap } from '../types.js';
 
 export type PrimitiveField = { isConditional: boolean; fieldName: string };
@@ -24,10 +24,13 @@ export type SelectionSetProcessorConfig = {
 };
 
 export class BaseSelectionSetProcessor<Config extends SelectionSetProcessorConfig> {
+  // map of selection to its typename
+  typeCache = new Map<Location, Map<string, [string, string]>>();
+
   constructor(public config: Config) {}
 
   buildFieldsIntoObject(allObjectsMerged: string[]): string {
-    return `{ ${allObjectsMerged.join(', ')} }`;
+    return `{\n  ${allObjectsMerged.join(',\n  ')}\n}`;
   }
 
   buildSelectionSetFromStrings(pieces: string[]): string {
