@@ -28,7 +28,7 @@ export type TypeScriptValue =
   | TypeScriptInterface
   | TypeScriptRawTypeReference
   | TypeScriptTypeUsage
-  | TypeNameProperty;
+  | TypeScriptValueWithModifiers;
 
 export type Statement = TypeScriptInterface | TypeScriptTypeAlias | TypeScriptEnum;
 
@@ -155,6 +155,9 @@ export class TypeScriptObjectProperty extends TypeScriptCommentable implements T
     readonly?: boolean;
   }) {
     super();
+    if (!value?.print) {
+      throw new Error(`Cannot create TypeScriptObjectProperty with no value`);
+    }
     this.propertyName = propertyName;
     this.value = value;
     this.optional = optional;
@@ -218,6 +221,18 @@ export class TypeNameProperty extends TypeScriptObjectProperty {
   // }
 }
 
+export class TypeScriptValueWithModifiers implements TypeScriptPrintable {
+  value: TypeScriptValue;
+  modify: (printed: string) => string;
+  constructor({ value, modify }: { value: TypeScriptValue; modify: (printed: string) => string }) {
+    this.value = value;
+    this.modify = modify;
+  }
+  print(indentation = 0): string {
+    return this.modify(this.value.print(indentation));
+  }
+}
+
 export class TypeScriptObject implements TypeScriptPrintable {
   properties: TypeScriptObjectProperty[];
   constructor({ properties }: { properties: TypeScriptObjectProperty[] }) {
@@ -253,17 +268,27 @@ export class TypeScriptIntersection implements TypeScriptPrintable {
     return this;
   }
 
+  getFlattenedMemberProperties(): TypeScriptObjectProperty[] | false {
+    const flattenedProperties = this.members.flatMap(flattenProperties);
+    if (flattenedProperties.every((m): m is TypeScriptObjectProperty => m !== false)) {
+      return flattenProperties as unknown as TypeScriptObjectProperty[];
+    }
+    return false;
+  }
+
   print(indentation = 0): string {
     if (this.members.length === 1) {
       return this.members[0].print(indentation);
     }
-    const flattenedProperties = this.members.flatMap(flattenProperties);
-    if (flattenedProperties.every(m => m !== false)) {
-      return this.printOptimizedIntersection(flattenedProperties as TypeScriptObjectProperty[], indentation);
+    const flattenedProperties = this.getFlattenedMemberProperties();
+    if (flattenedProperties) {
+      return this.printOptimizedIntersection(flattenedProperties, indentation);
     }
 
     return this.members
-      .map(m => (m instanceof TypeScriptUnion ? `( ${m.print(indentation)} )` : m.print(indentation)))
+      .map(m =>
+        m instanceof TypeScriptUnion && m.members.length > 1 ? `( ${m.print(indentation)} )` : m.print(indentation)
+      )
       .join(' & ');
   }
 
@@ -308,7 +333,11 @@ export class TypeScriptUnion implements TypeScriptPrintable {
       return this.members[0].print(indentation);
     }
     return this.members
-      .map(m => (m instanceof TypeScriptIntersection ? `( ${m.print(indentation)} )` : m.print(indentation)))
+      .map(m =>
+        m instanceof TypeScriptIntersection && m.members.length > 1
+          ? `( ${m.print(indentation)} )`
+          : m.print(indentation)
+      )
       .join(' | ');
   }
 }
@@ -392,19 +421,49 @@ export class TypeScriptTypeAlias extends TypeScriptCommentable implements TypeSc
   typeName: string;
   definition: TypeScriptValue;
   export?: boolean;
+  preferInferface?: boolean;
 
-  constructor({ typeName, definition, ...rest }: { typeName: string; definition: TypeScriptValue; export?: boolean }) {
+  constructor({
+    typeName,
+    definition,
+    preferInferface = true,
+    ...rest
+  }: {
+    typeName: string;
+    definition: TypeScriptValue;
+    export?: boolean;
+    preferInferface?: boolean;
+  }) {
     super();
     this.typeName = typeName;
     this.definition = definition;
     this.export = rest.export;
+    this.preferInferface = preferInferface;
+    if (typeName === 'OverlappingFieldsMergingTestQuery') {
+      console.log(typeName, definition);
+      // throw new Error('test');
+    }
+  }
+
+  canPrintInterface(): boolean {
+    if (this.preferInferface === false) {
+      return false;
+    }
+    if (this.definition instanceof TypeScriptObject) {
+      return true;
+    }
+    if (this.definition instanceof TypeScriptIntersection) {
+      return this.definition.getFlattenedMemberProperties() !== false;
+    }
+    return false;
   }
 
   printStatement(indentation = 0): string {
     const indent = ' '.repeat(indentation);
-    return `${this.printComment(indentation)}${indent}${this.export ? `export ` : ''}type ${
-      this.typeName
-    } = ${this.definition.print(indentation)}`;
+    const asInterface = this.canPrintInterface();
+    return `${this.printComment(indentation)}${indent}${this.export ? `export ` : ''}${
+      asInterface ? 'interface' : 'type'
+    } ${this.typeName}${asInterface ? '' : ' ='} ${this.definition.print(indentation)}${asInterface ? '' : ';'}`;
   }
 
   print(): string {

@@ -14,7 +14,7 @@ import { SelectionSetToObject } from './selection-set-to-object.js';
 import { NormalizedScalarsMap } from './types.js';
 import { buildScalarsFromConfig, DeclarationBlock, DeclarationBlockConfig, getConfigValue } from './utils.js';
 import { OperationVariablesToObject } from './variables-to-object.js';
-import { TypeScriptIntersection, TypeScriptTypeAlias, TypeScriptUnion } from './ts-printer.js';
+import { TypeScriptInterface, TypeScriptIntersection, TypeScriptTypeAlias, TypeScriptUnion } from './ts-printer.js';
 import { TSSelectionSet } from './selection-set-processor/base.js';
 
 export type DependentType = TypeScriptTypeAlias | TypeScriptIntersection | TypeScriptUnion | TSSelectionSet;
@@ -245,7 +245,7 @@ export class BaseDocumentsVisitor<
       selectionSet
         .transformFragmentSelectionSetToTypes(node.name.value, fragmentSuffix, this._declarationBlockConfig)
         .map(printDependentType)
-        .join('\n'),
+        .join('\n\n'),
       this.config.experimentalFragmentVariables
         ? new DeclarationBlock({
             ...this._declarationBlockConfig,
@@ -261,8 +261,8 @@ export class BaseDocumentsVisitor<
             .withBlock(this._variablesTransfomer.transform(node.variableDefinitions)).string
         : undefined,
     ]
-      .filter(r => r)
-      .join('\n');
+      .filter(Boolean)
+      .join('\n\n');
   }
 
   protected applyVariablesWrapper(variablesBlock: string): string {
@@ -289,13 +289,27 @@ export class BaseDocumentsVisitor<
       })
     );
 
-    const operationResult = new TypeScriptTypeAlias({
-      typeName: this.convertName(name, {
-        suffix: operationTypeSuffix + this._parsedConfig.operationResultSuffix,
-      }),
-      definition: selectionSetObjects.tsType,
-      export: true,
+    const operationResultTypeName = this.convertName(name, {
+      suffix: operationTypeSuffix + this._parsedConfig.operationResultSuffix,
     });
+
+    let operationResult: TypeScriptTypeAlias | null = null;
+
+    if (
+      (selectionSetObjects.tsType instanceof TypeScriptTypeAlias ||
+        selectionSetObjects.tsType instanceof TypeScriptInterface) &&
+      selectionSetObjects.tsType.typeName === operationResultTypeName
+    ) {
+      selectionSetObjects.tsType.export = true;
+    } else {
+      operationResult = new TypeScriptTypeAlias({
+        typeName: this.convertName(name, {
+          suffix: operationTypeSuffix + this._parsedConfig.operationResultSuffix,
+        }),
+        definition: selectionSetObjects.tsType,
+        export: true,
+      });
+    }
 
     // TODO: convert operationVariables ??
     // const operationVariables = new TypeScriptTypeAlias({
@@ -338,8 +352,8 @@ export class BaseDocumentsVisitor<
 
     const interfacesResult = this._parsedConfig.extractAllTypes ? selectionSetObjects.dependentTypes : [];
 
-    return [interfacesResult.map(printDependentType).join('\n'), operationVariables, operationResult.printStatement()]
-      .filter(r => r)
+    return [...interfacesResult.map(printDependentType), operationVariables, operationResult?.printStatement()]
+      .filter(Boolean)
       .join('\n\n');
   }
 }

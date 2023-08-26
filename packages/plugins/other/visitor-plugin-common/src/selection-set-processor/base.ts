@@ -6,19 +6,26 @@ import {
   TypeScriptObjectProperty,
   TypeScriptTypeUsage,
   TypeScriptValue,
+  TypeScriptValueWithModifiers,
 } from '../ts-printer.js';
 
 export type PrimitiveField = { isConditional: boolean; fieldName: string };
 export type PrimitiveAliasedFields = { alias: string; fieldName: string };
 export type TSSelectionSet = TypeScriptObject | TypeScriptTypeUsage;
 export type LinkField = {
-  alias: string;
-  name: string;
+  alias: FieldNameConfig;
+  name: FieldNameConfig;
   type: string;
-  selectionSet: TypeScriptObject | TypeScriptTypeUsage;
+  selectionSet: TypeScriptObject | TypeScriptTypeUsage | TypeScriptValueWithModifiers;
 };
 export type NameAndType = TypeScriptObjectProperty;
 export type ProcessResult = null | Array<NameAndType | TSSelectionSet>;
+
+export type FieldNameConfig = {
+  propertyName: string;
+  optional?: boolean;
+  readonly?: boolean;
+};
 
 export type SelectionSetProcessorConfig = {
   namespacedImportName: string | null;
@@ -31,12 +38,12 @@ export type SelectionSetProcessorConfig = {
     type?: GraphQLOutputType | GraphQLNamedType | null,
     isConditional?: boolean,
     isOptional?: boolean
-  ): string;
+  ): FieldNameConfig;
   wrapTypeWithModifiers(baseType: string, type: GraphQLOutputType | GraphQLNamedType): string;
   avoidOptionals?: AvoidOptionalsConfig | boolean;
 };
 
-export class BaseSelectionSetProcessor<Config extends SelectionSetProcessorConfig> {
+export class BaseSelectionSetProcessor<Config extends SelectionSetProcessorConfig = SelectionSetProcessorConfig> {
   typeCache = new Map<Location, Map<string, TypeScriptValue>>();
 
   constructor(public config: Config) {}
@@ -79,7 +86,7 @@ export class BaseSelectionSetProcessor<Config extends SelectionSetProcessorConfi
     throw new Error(`Please override "transformLinkFields" as part of your BaseSelectionSetProcessor implementation!`);
   }
 
-  transformTypenameField(_type: TypeScriptValue, _name: string): ProcessResult {
+  transformTypenameField(_type: TypeScriptValue, _nameConfig: FieldNameConfig): ProcessResult {
     // TODO: what about optionality? it's not being accounted for when this is used
     throw new Error(
       `Please override "transformTypenameField" as part of your BaseSelectionSetProcessor implementation!`

@@ -1,5 +1,6 @@
 import {
   BaseSelectionSetProcessor,
+  FieldNameConfig,
   LinkField,
   PrimitiveAliasedFields,
   PrimitiveField,
@@ -91,12 +92,12 @@ export class TypeScriptSelectionSetProcessor extends BaseSelectionSetProcessor<S
     return [res];
   }
 
-  transformTypenameField(type: TypeScriptValue, name: string): ProcessResult {
+  transformTypenameField(type: TypeScriptValue, nameConfig: FieldNameConfig): ProcessResult {
     return [
       new TypeScriptObject({
         properties: [
           new TypeNameProperty({
-            propertyName: name,
+            ...nameConfig,
             value: type,
           }),
         ],
@@ -144,7 +145,7 @@ export class TypeScriptSelectionSetProcessor extends BaseSelectionSetProcessor<S
         properties: fields.map(
           field =>
             new TypeScriptObjectProperty({
-              propertyName: field.alias || field.name,
+              ...(field.alias || field.name),
               value: field.selectionSet,
             })
         ),
