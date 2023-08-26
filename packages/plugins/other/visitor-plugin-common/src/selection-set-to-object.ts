@@ -31,7 +31,6 @@ import { BaseVisitorConvertOptions } from './base-visitor.js';
 import {
   BaseSelectionSetProcessor,
   LinkField,
-  NameAndType,
   PrimitiveAliasedFields,
   PrimitiveField,
   ProcessResult,
@@ -79,7 +78,10 @@ type FragmentSpreadUsage = {
 };
 
 type CollectedFragmentNode = (SelectionNode | FragmentSpreadUsage | DirectiveNode) & FragmentDirectives;
-type GroupedTypeScriptTypes = Record<string, Array<DependentType>>;
+type GroupedTypeScriptTypes = Record<
+  string,
+  Array<DependentType | TypeScriptIntersection | TypeScriptUnion | TypeScriptTypeUsage>
+>;
 
 const operationTypes: string[] = Object.values(OperationTypeNode);
 
@@ -413,7 +415,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
         const { fields, dependentTypes: subDependentTypes } = this.buildSelectionSet(schemaType, selectionNodes, {
           parentFieldName: operationTypes.includes(typeName.toLowerCase()) ? parentName : `${parentName}_${typeName}`,
         });
-        const transformedSet = this.selectionSetStringFromFields(fields);
+        const transformedSet = this.selectionSetFromFields(fields);
 
         if (transformedSet) {
           prev[typeName].push(transformedSet);
@@ -433,7 +435,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
                 parentFieldName: parentName,
               }
             );
-            const incrementalSet = this.selectionSetStringFromFields(incrementalFields);
+            const incrementalSet = this.selectionSetFromFields(incrementalFields);
             prev[typeName].push(incrementalSet);
             dependentTypes.push(...incrementalDependentTypes);
 
@@ -451,8 +453,8 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
             { unsetTypes: true, parentFieldName: parentName }
           );
 
-          const initialSet = this.selectionSetStringFromFields(initialFields);
-          const subsequentSet = this.selectionSetStringFromFields(subsequentFields);
+          const initialSet = this.selectionSetFromFields(initialFields);
+          const subsequentSet = this.selectionSetFromFields(subsequentFields);
           dependentTypes.push(...initialDependentTypes, ...subsequentDependentTypes);
           prev[typeName].push(new TypeScriptUnion({ members: [initialSet, subsequentSet] }));
         }
@@ -493,11 +495,10 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       });
       dependentTypes.push(...subDependentTypes);
 
-      const selectionSet = this.selectionSetStringFromFields(fields);
-      if (!selectionSet) return prev;
+      const selectionSet = this.selectionSetFromFields(fields);
 
-      // TODO: is there a better way to group these?
-      const key = selectionSet.print();
+      // TODO: is there a better way to group these than by printing it?
+      const key = selectionSet?.print() ?? 'null';
       prev[key] = {
         fields,
         types: [
@@ -529,7 +530,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
               firstPropertyConfig
             )
           : [];
-        const transformedSet = this.selectionSetStringFromFields([...typenameUnion, ...grouped[key].fields]);
+        const transformedSet = this.selectionSetFromFields([...typenameUnion, ...grouped[key].fields]);
 
         // The keys here will be used to generate intermediary
         // fragment names. To avoid blowing up the type name on large
@@ -554,20 +555,22 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     return { grouped: compacted, mustAddEmptyObject, dependentTypes };
   }
 
-  protected selectionSetStringFromFields(
-    fields: (NameAndType | TypeScriptObject | TypeScriptTypeUsage)[]
+  protected selectionSetFromFields(
+    fields: (TSSelectionSet | TypeScriptObjectProperty)[]
   ): TypeScriptIntersection | TSSelectionSet | null {
     const allTypes = fields.filter(
       (f): f is TypeScriptObject | TypeScriptTypeUsage =>
         f instanceof TypeScriptObject || f instanceof TypeScriptTypeUsage
     );
-    const allObjectProperties = fields.filter((f): f is NameAndType => f instanceof TypeScriptObjectProperty);
+    const allObjectProperties = fields.filter(
+      (f): f is TypeScriptObjectProperty => f instanceof TypeScriptObjectProperty
+    );
 
     const mergedObjects = allObjectProperties.length
       ? this._processor.buildFieldsIntoObject(allObjectProperties)
       : null;
-    const transformedSet = this._processor.buildSelectionSetFromStrings([...allTypes, mergedObjects]);
-    return transformedSet;
+
+    return this._processor.buildSelectionSetFromPieces([...allTypes, mergedObjects]);
   }
 
   protected buildSelectionSet(
@@ -866,8 +869,9 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
           const name = fieldName ? `${fieldName}_${typeName}` : typeName;
           return new TypeScriptTypeAlias({
             typeName: name,
-            export: this._config.extractAllTypes,
             definition: objDefinition,
+            // exporting to avoid Exported variable 'xyz' has or is using name '...' from external module "..." but cannot be named.
+            export: this._config.extractAllTypes,
           });
         });
       })
@@ -941,6 +945,7 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
         new TypeScriptTypeAlias({
           typeName: declarationName,
           definition: content,
+          // exporting to avoid Exported variable 'xyz' has or is using name '...' from external module "..." but cannot be named.
           export: this._config.extractAllTypes,
         }),
       ];
@@ -962,9 +967,14 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       ];
     }
 
+    if (this._config.exportFragmentSpreadSubTypes) {
+      for (const type of subTypes) {
+        type.export = true;
+      }
+    }
+
     return [
       ...dependentTypes,
-      // TODO: for subtypes: export 't' if this._config.exportFragmentSpreadSubTypes
       // TODO: respect declarationBlockConfig
       ...(this._config.extractAllTypes ? subTypes : []),
       new TypeScriptTypeAlias({

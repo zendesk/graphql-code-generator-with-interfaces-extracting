@@ -155,8 +155,11 @@ export class TypeScriptObjectProperty extends TypeScriptCommentable implements T
     readonly?: boolean;
   }) {
     super();
-    if (!value?.print) {
+    if (!value) {
       throw new Error(`Cannot create TypeScriptObjectProperty with no value`);
+    }
+    if (!propertyName) {
+      throw new Error(`Cannot create TypeScriptObjectProperty with no propertyName`);
     }
     this.propertyName = propertyName;
     this.value = value;
@@ -178,47 +181,6 @@ export class TypeScriptObjectProperty extends TypeScriptCommentable implements T
       this.optional ? '?' : ''
     }: ${this.value.print(indentation)}`;
   }
-}
-
-// TODO: move out of this file
-export class TypeNameProperty extends TypeScriptObjectProperty {
-  constructor({
-    propertyName = '__typename',
-    ...rest
-  }: {
-    propertyName?: string;
-    value: TypeScriptValue;
-    optional?: boolean;
-    readonly?: boolean;
-  }) {
-    super({ propertyName, ...rest });
-  }
-
-  get typename(): string {
-    return this.value.print();
-  }
-
-  // private __typename: TypeScriptStringLiteral;
-  // get typename(): string {
-  //   return this.__typename.literal;
-  // }
-  // set typename(value: string) {
-  //   this.__typename = new TypeScriptStringLiteral({ literal: value });
-  // }
-
-  // constructor({
-  //   typename,
-  //   propertyName = '__typename',
-  //   optional,
-  // }: {
-  //   typename: string | string[];
-  //   propertyName?: string;
-  //   optional?: boolean;
-  // }) {
-  //   const value = new TypeScriptStringLiteral({ literal: typename });
-  //   super({ value, propertyName, optional });
-  //   this.__typename = value;
-  // }
 }
 
 export class TypeScriptValueWithModifiers implements TypeScriptPrintable {
@@ -439,10 +401,6 @@ export class TypeScriptTypeAlias extends TypeScriptCommentable implements TypeSc
     this.definition = definition;
     this.export = rest.export;
     this.preferInferface = preferInferface;
-    if (typeName === 'OverlappingFieldsMergingTestQuery') {
-      console.log(typeName, definition);
-      // throw new Error('test');
-    }
   }
 
   canPrintInterface(): boolean {
@@ -485,5 +443,24 @@ export class TypeScriptPrinter implements TypeScriptStatement {
 
   printStatement(indentation = 0): string {
     return this.statements.map(s => s.printStatement(indentation)).join('\n\n');
+  }
+}
+
+// TODO: move out of this file
+export class TypeNameProperty extends TypeScriptObjectProperty {
+  constructor({
+    propertyName = '__typename',
+    ...rest
+  }: {
+    propertyName?: string;
+    value: TypeScriptValue;
+    optional?: boolean;
+    readonly?: boolean;
+  }) {
+    super({ propertyName, ...rest });
+  }
+
+  get typename(): string {
+    return this.value.print();
   }
 }

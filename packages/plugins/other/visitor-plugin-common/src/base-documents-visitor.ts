@@ -14,10 +14,9 @@ import { SelectionSetToObject } from './selection-set-to-object.js';
 import { NormalizedScalarsMap } from './types.js';
 import { buildScalarsFromConfig, DeclarationBlock, DeclarationBlockConfig, getConfigValue } from './utils.js';
 import { OperationVariablesToObject } from './variables-to-object.js';
-import { TypeScriptInterface, TypeScriptIntersection, TypeScriptTypeAlias, TypeScriptUnion } from './ts-printer.js';
-import { TSSelectionSet } from './selection-set-processor/base.js';
+import { TypeScriptInterface, TypeScriptObject, TypeScriptTypeAlias } from './ts-printer.js';
 
-export type DependentType = TypeScriptTypeAlias | TypeScriptIntersection | TypeScriptUnion | TSSelectionSet;
+export type DependentType = TypeScriptTypeAlias | TypeScriptObject;
 
 function getRootType(operation: OperationTypeNode, schema: GraphQLSchema) {
   switch (operation) {
@@ -241,28 +240,37 @@ export class BaseDocumentsVisitor<
     const fragmentRootType = this._schema.getType(node.typeCondition.name.value);
     const selectionSet = this._selectionSetToObject.createNext(fragmentRootType, node.selectionSet);
     const fragmentSuffix = this.getFragmentSuffix(node);
-    return [
-      selectionSet
-        .transformFragmentSelectionSetToTypes(node.name.value, fragmentSuffix, this._declarationBlockConfig)
-        .map(printDependentType)
-        .join('\n\n'),
-      this.config.experimentalFragmentVariables
-        ? new DeclarationBlock({
-            ...this._declarationBlockConfig,
-            blockTransformer: t => this.applyVariablesWrapper(t),
-          })
-            .export()
-            .asKind('type')
-            .withName(
-              this.convertName(node.name.value, {
-                suffix: fragmentSuffix + 'Variables',
-              })
-            )
-            .withBlock(this._variablesTransfomer.transform(node.variableDefinitions)).string
-        : undefined,
-    ]
-      .filter(Boolean)
-      .join('\n\n');
+    const locationComment = node.loc
+      ? `//#region ${node.name.value} (Fragment) defined in: ${node.loc.source.name}:${node.loc.start}:${node.loc.end}`
+      : undefined;
+    const locationEndComment = node.loc ? `//#endregion ${node.name.value} (Fragment)` : undefined;
+    return (
+      [
+        locationComment,
+        selectionSet
+          .transformFragmentSelectionSetToTypes(node.name.value, fragmentSuffix, this._declarationBlockConfig)
+          .map(printDependentType)
+          .join('\n\n'),
+        this.config.experimentalFragmentVariables
+          ? new DeclarationBlock({
+              ...this._declarationBlockConfig,
+              blockTransformer: t => this.applyVariablesWrapper(t),
+            })
+              .export()
+              .asKind('type')
+              .withName(
+                this.convertName(node.name.value, {
+                  suffix: fragmentSuffix + 'Variables',
+                })
+              )
+              .withBlock(this._variablesTransfomer.transform(node.variableDefinitions)).string
+          : undefined,
+        locationEndComment,
+      ]
+        .filter(Boolean)
+        .map(s => s.trim())
+        .join('\n\n') + '\n'
+    );
   }
 
   protected applyVariablesWrapper(variablesBlock: string): string {
@@ -333,31 +341,28 @@ export class BaseDocumentsVisitor<
       )
       .withBlock(visitedOperationVariables).string;
 
-    // const typeRequired =
-    //   !this._parsedConfig.preResolveTypes ||
-    //   this._parsedConfig.mergeFragmentTypes ||
-    //   this._parsedConfig.inlineFragmentTypes !== 'inline';
-
-    // TODO: possibly this check isn't required here because dependentTypes should be empty when `extractAllTypes: false`
-    // const interfacesResult = this._parsedConfig.extractAllTypes
-    //   ? selectionSetObjects.dependentTypes.map(
-    //       i =>
-    //         new DeclarationBlock(this._declarationBlockConfig)
-    //           .export()
-    //           .asKind(typeRequired || i.isComplexType ? 'type' : 'interface')
-    //           .withName(i.name)
-    //           .withContent(i.content).string
-    //     )
-    //   : [];
-
     const interfacesResult = this._parsedConfig.extractAllTypes ? selectionSetObjects.dependentTypes : [];
 
-    return [...interfacesResult.map(printDependentType), operationVariables, operationResult?.printStatement()]
-      .filter(Boolean)
-      .join('\n\n');
+    const locationComment = node.loc
+      ? `//#region ${node.name.value} (Operation) defined in: ${node.loc.source.name}:${node.loc.start}:${node.loc.end}`
+      : undefined;
+    const locationEndComment = node.loc ? `//#endregion ${node.name.value} (Operation)` : undefined;
+
+    return (
+      [
+        locationComment,
+        ...interfacesResult.map(printDependentType),
+        operationVariables,
+        operationResult?.printStatement(),
+        locationEndComment,
+      ]
+        .filter(Boolean)
+        .map(s => s.trim())
+        .join('\n\n') + '\n'
+    );
   }
 }
 
 function printDependentType(i: DependentType): string {
-  return 'printStatement' in i ? i.printStatement() : `// something wrong here\n${i.print()}`;
+  return 'printStatement' in i ? i.printStatement() : '';
 }

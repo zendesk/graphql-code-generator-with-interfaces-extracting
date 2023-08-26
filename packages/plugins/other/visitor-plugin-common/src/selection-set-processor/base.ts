@@ -18,8 +18,7 @@ export type LinkField = {
   type: string;
   selectionSet: TypeScriptObject | TypeScriptTypeUsage | TypeScriptValueWithModifiers;
 };
-export type NameAndType = TypeScriptObjectProperty;
-export type ProcessResult = null | Array<NameAndType | TSSelectionSet>;
+export type ProcessResult = null | Array<TypeScriptObjectProperty | TSSelectionSet>;
 
 export type FieldNameConfig = {
   propertyName: string;
@@ -52,7 +51,7 @@ export class BaseSelectionSetProcessor<Config extends SelectionSetProcessorConfi
     return new TypeScriptObject({ properties: allObjectsMerged });
   }
 
-  buildSelectionSetFromStrings(pieces: TSSelectionSet[]) {
+  buildSelectionSetFromPieces(pieces: TSSelectionSet[]) {
     if (pieces.length === 0) {
       return null;
     }

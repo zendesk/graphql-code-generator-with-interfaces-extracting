@@ -99,27 +99,33 @@ describe('ExtractTypes', () => {
         outputFile: '',
       });
       expect(content).toMatchInlineSnapshot(`
-        "type UserFragment_DummyUser = {
-          __typename: 'DummyUser',
-          id: string,
-          joinDate: any
-        };
+        "//#region UserFragment (Fragment) defined in: GraphQL request:9:82
 
-        type UserFragment_ActiveUser = {
-          __typename: 'ActiveUser',
-          id: string,
-          joinDate: any
-        };
-
-        export type UserFragment = UserFragment_DummyUser | UserFragment_ActiveUser;
-
-        export interface MeFragment_ActiveUser_parentUser_DummyUser {
+        interface UserFragment_DummyUser {
           __typename: 'DummyUser',
           id: string,
           joinDate: any
         }
 
-        export interface MeFragment_ActiveUser_parentUser_ActiveUser {
+        interface UserFragment_ActiveUser {
+          __typename: 'ActiveUser',
+          id: string,
+          joinDate: any
+        }
+
+        export type UserFragment = UserFragment_DummyUser | UserFragment_ActiveUser;
+
+        //#endregion UserFragment (Fragment)
+
+        //#region Me (Fragment) defined in: GraphQL request:91:293
+
+        interface MeFragment_ActiveUser_parentUser_DummyUser {
+          __typename: 'DummyUser',
+          id: string,
+          joinDate: any
+        }
+
+        interface MeFragment_ActiveUser_parentUser_ActiveUser {
           __typename: 'ActiveUser',
           id: string,
           joinDate: any
@@ -127,29 +133,33 @@ describe('ExtractTypes', () => {
 
         export type MeFragment_ActiveUser_parentUser = MeFragment_ActiveUser_parentUser_DummyUser | MeFragment_ActiveUser_parentUser_ActiveUser;
 
-        type Me_DummyUser_Fragment = {
-          __typename: 'DummyUser',
-          id: string,
-          joinDate: any
-        };
-
-        type Me_ActiveUser_Fragment = {
-          __typename: 'ActiveUser',
-          isActive: boolean,
-          id: string,
-          joinDate: any,
-          parentUser: MeFragment_ActiveUser_parentUser
-        };
-
-        export type MeFragment = Me_DummyUser_Fragment | Me_ActiveUser_Fragment;
-
-        export interface OverlappingFieldsMergingTestQuery_me_DummyUser {
+        interface Me_DummyUser_Fragment {
           __typename: 'DummyUser',
           id: string,
           joinDate: any
         }
 
-        export interface OverlappingFieldsMergingTestQuery_me_ActiveUser {
+        interface Me_ActiveUser_Fragment {
+          __typename: 'ActiveUser',
+          isActive: boolean,
+          id: string,
+          joinDate: any,
+          parentUser: MeFragment_ActiveUser_parentUser
+        }
+
+        export type MeFragment = Me_DummyUser_Fragment | Me_ActiveUser_Fragment;
+
+        //#endregion Me (Fragment)
+
+        //#region OverlappingFieldsMergingTest (Operation) defined in: GraphQL request:302:503
+
+        interface OverlappingFieldsMergingTestQuery_me_DummyUser {
+          __typename: 'DummyUser',
+          id: string,
+          joinDate: any
+        }
+
+        interface OverlappingFieldsMergingTestQuery_me_ActiveUser {
           __typename: 'ActiveUser',
           id: string,
           isActive: boolean,
@@ -159,24 +169,26 @@ describe('ExtractTypes', () => {
 
         export type OverlappingFieldsMergingTestQuery_me = OverlappingFieldsMergingTestQuery_me_DummyUser | OverlappingFieldsMergingTestQuery_me_ActiveUser;
 
-        export interface OverlappingFieldsMergingTestQuery_Query {
+        interface OverlappingFieldsMergingTestQuery_Query {
           __typename: 'Query',
           me?: OverlappingFieldsMergingTestQuery_me | null
         }
 
+        export type OverlappingFieldsMergingTestQuery = OverlappingFieldsMergingTestQuery_Query;
 
         export type OverlappingFieldsMergingTestQueryVariables = Exact<{ [key: string]: never; }>;
 
+        //#endregion OverlappingFieldsMergingTest (Operation)
 
-        export type OverlappingFieldsMergingTestQuery = OverlappingFieldsMergingTestQuery_Query;
+        //#region NestedOverlappingFieldsMergingTest (Operation) defined in: GraphQL request:512:832
 
-        export interface NestedOverlappingFieldsMergingTestQuery_me_DummyUser {
+        interface NestedOverlappingFieldsMergingTestQuery_me_DummyUser {
           __typename: 'DummyUser',
           id: string,
           joinDate: any
         }
 
-        export interface NestedOverlappingFieldsMergingTestQuery_me_ActiveUser {
+        interface NestedOverlappingFieldsMergingTestQuery_me_ActiveUser {
           __typename: 'ActiveUser',
           isActive: boolean,
           id: string,
@@ -186,16 +198,16 @@ describe('ExtractTypes', () => {
 
         export type NestedOverlappingFieldsMergingTestQuery_me = NestedOverlappingFieldsMergingTestQuery_me_DummyUser | NestedOverlappingFieldsMergingTestQuery_me_ActiveUser;
 
-        export interface NestedOverlappingFieldsMergingTestQuery_Query {
+        interface NestedOverlappingFieldsMergingTestQuery_Query {
           __typename: 'Query',
           me?: NestedOverlappingFieldsMergingTestQuery_me | null
         }
 
+        export type NestedOverlappingFieldsMergingTestQuery = NestedOverlappingFieldsMergingTestQuery_Query;
 
         export type NestedOverlappingFieldsMergingTestQueryVariables = Exact<{ [key: string]: never; }>;
 
-
-        export type NestedOverlappingFieldsMergingTestQuery = NestedOverlappingFieldsMergingTestQuery_Query;
+        //#endregion NestedOverlappingFieldsMergingTest (Operation)
         "
       `);
     });
@@ -432,248 +444,198 @@ describe('ExtractTypes', () => {
       outputFile: '',
     });
     expect(content).toMatchInlineSnapshot(`
-      "export type ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_article_ArchivedArticle = (
-        {
+      "//#region ConvoLogAnswerBotSolution (Fragment) defined in: GraphQL request:7:280
+
+      interface ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_article_ArchivedArticle {
+        __typename: 'ArchivedArticle',
         id: string,
         htmlUrl: string,
         title: string,
         url: string
       }
-        & {
-        __typename: 'ArchivedArticle'
-      }
-      );
 
-      export type ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_EmailInteraction = (
-        {
+      export type ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_article = ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_article_ArchivedArticle;
+
+      interface ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_EmailInteraction {
+        __typename: 'EmailInteraction',
         originalEmailURLPath: string
       }
-        & {
-        __typename: 'EmailInteraction'
-      }
-      );
 
-      export type ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_ChannelAnyInteraction = (
-        {
+      interface ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_ChannelAnyInteraction {
+        __typename: 'ChannelAnyInteraction',
         externalId: string,
         timestamp: string,
         resourceType: string
       }
-        & {
-        __typename: 'ChannelAnyInteraction'
-      }
-      );
 
-      export type ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_TalkInteraction_NotImplementedOriginatedFrom = {
+      interface ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_TalkInteraction_NotImplementedOriginatedFrom {
         __typename: 'TalkInteraction' | 'NotImplementedOriginatedFrom'
-      };
+      }
 
-      export type ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction = (
-        {
+      interface ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction {
+        __typename: 'NativeMessagingInteraction' | 'WhatsAppInteraction' | 'WeChatInteraction',
         conversationId?: string | null
       }
-        & {
-        __typename: 'NativeMessagingInteraction' | 'WhatsAppInteraction' | 'WeChatInteraction'
-      }
-      );
 
       export type ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom = ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_EmailInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_ChannelAnyInteraction | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_TalkInteraction_NotImplementedOriginatedFrom | ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction;
 
-      export type ConvoLogAnswerBotSolutionFragment = (
-        {
+      export interface ConvoLogAnswerBotSolutionFragment {
+        __typename: 'AnswerBotSolution',
         id: string,
         timestamp: string,
-        article: ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_article_ArchivedArticle,
+        article: ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_article,
         originatedFrom: ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom
       }
-        & {
-        __typename: 'AnswerBotSolution'
-      }
-      );
 
-      export type ConvoLogTalkGenericCallSummaryFragment = (
-        {
+      //#endregion ConvoLogAnswerBotSolution (Fragment)
+
+      //#region ConvoLogTalkGenericCallSummary (Fragment) defined in: GraphQL request:288:390
+
+      export interface ConvoLogTalkGenericCallSummaryFragment {
+        __typename: 'TalkPublicCallSummary',
         id: string,
         summary: string
       }
-        & {
-        __typename: 'TalkPublicCallSummary'
-      }
-      );
 
-      export type ConvoLogTalkInteractionFragment = (
-        {
+      //#endregion ConvoLogTalkGenericCallSummary (Fragment)
+
+      //#region ConvoLogTalkInteraction (Fragment) defined in: GraphQL request:397:487
+
+      export interface ConvoLogTalkInteractionFragment {
+        __typename: 'TalkInteraction',
         channel: string,
         type: CallType
       }
-        & {
-        __typename: 'TalkInteraction'
-      }
-      );
 
-      export type ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_EmailInteraction = (
-        {
+      //#endregion ConvoLogTalkInteraction (Fragment)
+
+      //#region ConvoLogConversationEvent (Fragment) defined in: GraphQL request:494:678
+
+      interface ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_EmailInteraction {
+        __typename: 'EmailInteraction',
         originalEmailURLPath: string
       }
-        & {
-        __typename: 'EmailInteraction'
-      }
-      );
 
-      export type ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_ChannelAnyInteraction = (
-        {
+      interface ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_ChannelAnyInteraction {
+        __typename: 'ChannelAnyInteraction',
         externalId: string,
         timestamp: string,
         resourceType: string
       }
-        & {
-        __typename: 'ChannelAnyInteraction'
-      }
-      );
 
-      export type ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_TalkInteraction_NotImplementedOriginatedFrom = {
+      interface ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_TalkInteraction_NotImplementedOriginatedFrom {
         __typename: 'TalkInteraction' | 'NotImplementedOriginatedFrom'
-      };
+      }
 
-      export type ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction = (
-        {
+      interface ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction {
+        __typename: 'NativeMessagingInteraction' | 'WhatsAppInteraction' | 'WeChatInteraction',
         conversationId?: string | null
       }
-        & {
-        __typename: 'NativeMessagingInteraction' | 'WhatsAppInteraction' | 'WeChatInteraction'
-      }
-      );
 
       export type ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom = ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_EmailInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_ChannelAnyInteraction | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_TalkInteraction_NotImplementedOriginatedFrom | ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction;
 
-      export type ConvoLogConversationEventFragment = (
-        {
+      export interface ConvoLogConversationEventFragment {
+        __typename: 'BrokenConversationEvent' | 'AnswerBotSolution' | 'TalkPublicCallSummary',
         id: string,
         timestamp: string,
         originatedFrom: ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom
       }
-        & {
-        __typename: 'BrokenConversationEvent' | 'AnswerBotSolution' | 'TalkPublicCallSummary'
-      }
-      );
 
-      type MessageEnvelopeData_EmailInteraction_Fragment = (
-        {
+      //#endregion ConvoLogConversationEvent (Fragment)
+
+      //#region MessageEnvelopeData (Fragment) defined in: GraphQL request:686:817
+
+      interface MessageEnvelopeData_EmailInteraction_Fragment {
+        __typename: 'EmailInteraction',
         originalEmailURLPath: string
       }
-        & {
-        __typename: 'EmailInteraction'
-      }
-      );
 
-      type MessageEnvelopeData_L2FjOkUrGUlRHrYBlLrKrZLjPf5Auo7b7u3C5Sh2U_Fragment = {
+      interface MessageEnvelopeData_L2FjOkUrGUlRHrYBlLrKrZLjPf5Auo7b7u3C5Sh2U_Fragment {
         __typename: 'ChannelAnyInteraction' | 'TalkInteraction' | 'NativeMessagingInteraction' | 'WhatsAppInteraction' | 'WeChatInteraction' | 'NotImplementedOriginatedFrom'
-      };
+      }
 
       export type MessageEnvelopeDataFragment = MessageEnvelopeData_EmailInteraction_Fragment | MessageEnvelopeData_L2FjOkUrGUlRHrYBlLrKrZLjPf5Auo7b7u3C5Sh2U_Fragment;
 
-      export type AnyChannelOriginatedFromFragment = (
-        {
+      //#endregion MessageEnvelopeData (Fragment)
+
+      //#region AnyChannelOriginatedFrom (Fragment) defined in: GraphQL request:825:951
+
+      export interface AnyChannelOriginatedFromFragment {
+        __typename: 'ChannelAnyInteraction',
         externalId: string,
         timestamp: string,
         resourceType: string
       }
-        & {
-        __typename: 'ChannelAnyInteraction'
-      }
-      );
 
-      type ConvoLogOriginatedFrom_EmailInteraction_Fragment = (
-        {
+      //#endregion AnyChannelOriginatedFrom (Fragment)
+
+      //#region ConvoLogOriginatedFrom (Fragment) defined in: GraphQL request:959:1177
+
+      interface ConvoLogOriginatedFrom_EmailInteraction_Fragment {
+        __typename: 'EmailInteraction',
         originalEmailURLPath: string
       }
-        & {
-        __typename: 'EmailInteraction'
-      }
-      );
 
-      type ConvoLogOriginatedFrom_ChannelAnyInteraction_Fragment = (
-        {
+      interface ConvoLogOriginatedFrom_ChannelAnyInteraction_Fragment {
+        __typename: 'ChannelAnyInteraction',
         externalId: string,
         timestamp: string,
         resourceType: string
       }
-        & {
-        __typename: 'ChannelAnyInteraction'
-      }
-      );
 
-      type ConvoLogOriginatedFrom_TalkInteraction_NotImplementedOriginatedFrom_Fragment = {
+      interface ConvoLogOriginatedFrom_TalkInteraction_NotImplementedOriginatedFrom_Fragment {
         __typename: 'TalkInteraction' | 'NotImplementedOriginatedFrom'
-      };
+      }
 
-      type ConvoLogOriginatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction_Fragment = (
-        {
+      interface ConvoLogOriginatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction_Fragment {
+        __typename: 'NativeMessagingInteraction' | 'WhatsAppInteraction' | 'WeChatInteraction',
         conversationId?: string | null
       }
-        & {
-        __typename: 'NativeMessagingInteraction' | 'WhatsAppInteraction' | 'WeChatInteraction'
-      }
-      );
 
       export type ConvoLogOriginatedFromFragment = ConvoLogOriginatedFrom_EmailInteraction_Fragment | ConvoLogOriginatedFrom_ChannelAnyInteraction_Fragment | ConvoLogOriginatedFrom_TalkInteraction_NotImplementedOriginatedFrom_Fragment | ConvoLogOriginatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction_Fragment;
 
-      export type ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_EmailInteraction = (
-        {
+      //#endregion ConvoLogOriginatedFrom (Fragment)
+
+      //#region ConvoLogTalkPublicCallSummary (Fragment) defined in: GraphQL request:1185:1469
+
+      interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_EmailInteraction {
+        __typename: 'EmailInteraction',
         originalEmailURLPath: string
       }
-        & {
-        __typename: 'EmailInteraction'
-      }
-      );
 
-      export type ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_ChannelAnyInteraction = (
-        {
+      interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_ChannelAnyInteraction {
+        __typename: 'ChannelAnyInteraction',
         externalId: string,
         timestamp: string,
         resourceType: string
       }
-        & {
-        __typename: 'ChannelAnyInteraction'
-      }
-      );
 
-      export type ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_TalkInteraction = (
-        {
+      interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_TalkInteraction {
+        __typename: 'TalkInteraction',
         channel: string,
         type: CallType
       }
-        & {
-        __typename: 'TalkInteraction'
-      }
-      );
 
-      export type ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction = (
-        {
+      interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction {
+        __typename: 'NativeMessagingInteraction' | 'WhatsAppInteraction' | 'WeChatInteraction',
         conversationId?: string | null
       }
-        & {
-        __typename: 'NativeMessagingInteraction' | 'WhatsAppInteraction' | 'WeChatInteraction'
-      }
-      );
 
-      export type ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_NotImplementedOriginatedFrom = {
+      interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_NotImplementedOriginatedFrom {
         __typename: 'NotImplementedOriginatedFrom'
-      };
+      }
 
       export type ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom = ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_EmailInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_ChannelAnyInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_TalkInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction | ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_NotImplementedOriginatedFrom;
 
-      export type ConvoLogTalkPublicCallSummaryFragment = (
-        {
+      export interface ConvoLogTalkPublicCallSummaryFragment {
+        __typename: 'TalkPublicCallSummary',
         id: string,
         timestamp: string,
         summary: string,
         originatedFrom: ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom
       }
-        & {
-        __typename: 'TalkPublicCallSummary'
-      }
-      );
+
+      //#endregion ConvoLogTalkPublicCallSummary (Fragment)
       "
     `);
 
