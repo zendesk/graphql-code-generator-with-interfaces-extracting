@@ -331,7 +331,7 @@ export class TypeScriptInterface extends TypeScriptCommentable implements TypeSc
   printStatement(indentation = 0): string {
     const indent = ' '.repeat(indentation);
     return `${this.printComment(indentation)}${indent}${this.export ? `export ` : ''}interface ${this.typeName}${
-      this.extends.length > 0 ? ` extends ${this.extends.map(value => value.typeName).join(', ')}` : ''
+      this.extends.length > 0 ? ` extends ${this.extends.map(value => value.print()).join(', ')}` : ''
     } ${this.definition.print(indentation)}`;
   }
 
@@ -375,7 +375,7 @@ export class TypeScriptTypeUsage implements TypeScriptPrintable {
   print(indentation = 0): string {
     const typeArguments = this.typeArguments ? `<${this.typeArguments.map(t => t.print(indentation)).join(', ')}>` : '';
     const propertyPath = this.propertyPath ? `[${this.propertyPath.map(t => t.print(indentation)).join('][')}]` : '';
-    return `${this.typeReference.typeName}${typeArguments}${propertyPath}`;
+    return `${this.typeReference.print()}${typeArguments}${propertyPath}`;
   }
 }
 
@@ -383,28 +383,28 @@ export class TypeScriptTypeAlias extends TypeScriptCommentable implements TypeSc
   typeName: string;
   definition: TypeScriptValue;
   export?: boolean;
-  preferInferface?: boolean;
+  preferInterface?: boolean;
 
   constructor({
     typeName,
     definition,
-    preferInferface = true,
+    preferInterface = true,
     ...rest
   }: {
     typeName: string;
     definition: TypeScriptValue;
     export?: boolean;
-    preferInferface?: boolean;
+    preferInterface?: boolean;
   }) {
     super();
     this.typeName = typeName;
     this.definition = definition;
     this.export = rest.export;
-    this.preferInferface = preferInferface;
+    this.preferInterface = preferInterface;
   }
 
   canPrintInterface(): boolean {
-    if (this.preferInferface === false) {
+    if (this.preferInterface === false) {
       return false;
     }
     if (this.definition instanceof TypeScriptObject) {
