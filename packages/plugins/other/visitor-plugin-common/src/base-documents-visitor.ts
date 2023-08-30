@@ -353,7 +353,7 @@ export class BaseDocumentsVisitor<
         locationComment,
         ...interfacesResult.map(printDependentType),
         operationVariables,
-        operationResult?.printStatement(),
+        operationResult?.printDeclaration(),
         locationEndComment,
       ]
         .filter(Boolean)
@@ -364,5 +364,5 @@ export class BaseDocumentsVisitor<
 }
 
 function printDependentType(i: DependentType): string {
-  return 'printStatement' in i ? i.printStatement() : '';
+  return 'printDeclaration' in i ? i.printDeclaration() : '';
 }

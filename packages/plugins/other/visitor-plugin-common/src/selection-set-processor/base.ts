@@ -4,6 +4,7 @@ import {
   TypeScriptIntersection,
   TypeScriptObject,
   TypeScriptObjectProperty,
+  TypeScriptTypeAlias,
   TypeScriptTypeUsage,
   TypeScriptValue,
   TypeScriptValueWithModifiers,
@@ -43,7 +44,7 @@ export type SelectionSetProcessorConfig = {
 };
 
 export class BaseSelectionSetProcessor<Config extends SelectionSetProcessorConfig = SelectionSetProcessorConfig> {
-  typeCache = new Map<Location, Map<string, TypeScriptValue>>();
+  typeCache = new Map<Location, Map<string, TypeScriptTypeAlias>>();
 
   constructor(public config: Config) {}
 

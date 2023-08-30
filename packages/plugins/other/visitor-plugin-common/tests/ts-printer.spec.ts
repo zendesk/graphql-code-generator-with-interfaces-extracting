@@ -135,7 +135,7 @@ describe('TypeScriptPrinter', () => {
       }),
       export: true,
     });
-    expect(interfaceObj.printStatement()).toBe(
+    expect(interfaceObj.printDeclaration()).toBe(
       'export interface MyInterface extends BaseInterface {\n  prop: string\n}'
     );
   });
@@ -146,7 +146,7 @@ describe('TypeScriptPrinter', () => {
       definition: TypeScriptPrimitiveString,
       export: true,
     });
-    expect(typeAlias.printStatement()).toBe('export type MyType = string');
+    expect(typeAlias.printDeclaration()).toBe('export type MyType = string');
   });
 
   test('should correctly print TypeScriptPrinter', () => {
@@ -172,7 +172,7 @@ describe('TypeScriptPrinter', () => {
         }),
       ],
     });
-    expect(printer.printStatement()).toBe(
+    expect(printer.printDeclaration()).toBe(
       'export type MyType = string\n\nexport interface MyInterface extends BaseInterface {\n  prop: string\n}'
     );
   });
@@ -244,7 +244,7 @@ export enum ComplexEnum {
   B
 }`;
 
-      expect(printer.printStatement()).toBe(expectedOutput);
+      expect(printer.printDeclaration()).toBe(expectedOutput);
     });
 
     test('should correctly print comments', () => {
@@ -283,7 +283,7 @@ export enum ComplexEnum {
         statements: [commentType, commentInterface, commentEnum],
       });
 
-      expect(printer.printStatement()).toMatchInlineSnapshot(`
+      expect(printer.printDeclaration()).toMatchInlineSnapshot(`
         "/**
          * This is a type alias
          * comment

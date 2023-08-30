@@ -101,13 +101,13 @@ describe('ExtractTypes', () => {
       expect(content).toMatchInlineSnapshot(`
         "//#region UserFragment (Fragment) defined in: GraphQL request:9:82
 
-        interface UserFragment_DummyUser {
+        export interface UserFragment_DummyUser {
           __typename: 'DummyUser',
           id: string,
           joinDate: any
         }
 
-        interface UserFragment_ActiveUser {
+        export interface UserFragment_ActiveUser {
           __typename: 'ActiveUser',
           id: string,
           joinDate: any
@@ -119,13 +119,13 @@ describe('ExtractTypes', () => {
 
         //#region Me (Fragment) defined in: GraphQL request:91:293
 
-        interface MeFragment_ActiveUser_parentUser_DummyUser {
+        export interface MeFragment_ActiveUser_parentUser_DummyUser {
           __typename: 'DummyUser',
           id: string,
           joinDate: any
         }
 
-        interface MeFragment_ActiveUser_parentUser_ActiveUser {
+        export interface MeFragment_ActiveUser_parentUser_ActiveUser {
           __typename: 'ActiveUser',
           id: string,
           joinDate: any
@@ -133,13 +133,13 @@ describe('ExtractTypes', () => {
 
         export type MeFragment_ActiveUser_parentUser = MeFragment_ActiveUser_parentUser_DummyUser | MeFragment_ActiveUser_parentUser_ActiveUser;
 
-        interface Me_DummyUser_Fragment {
+        export interface Me_DummyUser_Fragment {
           __typename: 'DummyUser',
           id: string,
           joinDate: any
         }
 
-        interface Me_ActiveUser_Fragment {
+        export interface Me_ActiveUser_Fragment {
           __typename: 'ActiveUser',
           isActive: boolean,
           id: string,
@@ -153,13 +153,13 @@ describe('ExtractTypes', () => {
 
         //#region OverlappingFieldsMergingTest (Operation) defined in: GraphQL request:302:503
 
-        interface OverlappingFieldsMergingTestQuery_me_DummyUser {
+        export interface OverlappingFieldsMergingTestQuery_me_DummyUser {
           __typename: 'DummyUser',
           id: string,
           joinDate: any
         }
 
-        interface OverlappingFieldsMergingTestQuery_me_ActiveUser {
+        export interface OverlappingFieldsMergingTestQuery_me_ActiveUser {
           __typename: 'ActiveUser',
           id: string,
           isActive: boolean,
@@ -169,7 +169,7 @@ describe('ExtractTypes', () => {
 
         export type OverlappingFieldsMergingTestQuery_me = OverlappingFieldsMergingTestQuery_me_DummyUser | OverlappingFieldsMergingTestQuery_me_ActiveUser;
 
-        interface OverlappingFieldsMergingTestQuery_Query {
+        export interface OverlappingFieldsMergingTestQuery_Query {
           __typename: 'Query',
           me?: OverlappingFieldsMergingTestQuery_me | null
         }
@@ -182,13 +182,13 @@ describe('ExtractTypes', () => {
 
         //#region NestedOverlappingFieldsMergingTest (Operation) defined in: GraphQL request:512:832
 
-        interface NestedOverlappingFieldsMergingTestQuery_me_DummyUser {
+        export interface NestedOverlappingFieldsMergingTestQuery_me_DummyUser {
           __typename: 'DummyUser',
           id: string,
           joinDate: any
         }
 
-        interface NestedOverlappingFieldsMergingTestQuery_me_ActiveUser {
+        export interface NestedOverlappingFieldsMergingTestQuery_me_ActiveUser {
           __typename: 'ActiveUser',
           isActive: boolean,
           id: string,
@@ -198,7 +198,7 @@ describe('ExtractTypes', () => {
 
         export type NestedOverlappingFieldsMergingTestQuery_me = NestedOverlappingFieldsMergingTestQuery_me_DummyUser | NestedOverlappingFieldsMergingTestQuery_me_ActiveUser;
 
-        interface NestedOverlappingFieldsMergingTestQuery_Query {
+        export interface NestedOverlappingFieldsMergingTestQuery_Query {
           __typename: 'Query',
           me?: NestedOverlappingFieldsMergingTestQuery_me | null
         }
@@ -446,7 +446,7 @@ describe('ExtractTypes', () => {
     expect(content).toMatchInlineSnapshot(`
       "//#region ConvoLogAnswerBotSolution (Fragment) defined in: GraphQL request:7:280
 
-      interface ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_article_ArchivedArticle {
+      export interface ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_article_ArchivedArticle {
         __typename: 'ArchivedArticle',
         id: string,
         htmlUrl: string,
@@ -456,23 +456,23 @@ describe('ExtractTypes', () => {
 
       export type ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_article = ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_article_ArchivedArticle;
 
-      interface ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_EmailInteraction {
+      export interface ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_EmailInteraction {
         __typename: 'EmailInteraction',
         originalEmailURLPath: string
       }
 
-      interface ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_ChannelAnyInteraction {
+      export interface ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_ChannelAnyInteraction {
         __typename: 'ChannelAnyInteraction',
         externalId: string,
         timestamp: string,
         resourceType: string
       }
 
-      interface ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_TalkInteraction_NotImplementedOriginatedFrom {
+      export interface ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_TalkInteraction_NotImplementedOriginatedFrom {
         __typename: 'TalkInteraction' | 'NotImplementedOriginatedFrom'
       }
 
-      interface ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction {
+      export interface ConvoLogAnswerBotSolutionFragment_AnswerBotSolution_originatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction {
         __typename: 'NativeMessagingInteraction' | 'WhatsAppInteraction' | 'WeChatInteraction',
         conversationId?: string | null
       }
@@ -511,23 +511,23 @@ describe('ExtractTypes', () => {
 
       //#region ConvoLogConversationEvent (Fragment) defined in: GraphQL request:494:678
 
-      interface ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_EmailInteraction {
+      export interface ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_EmailInteraction {
         __typename: 'EmailInteraction',
         originalEmailURLPath: string
       }
 
-      interface ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_ChannelAnyInteraction {
+      export interface ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_ChannelAnyInteraction {
         __typename: 'ChannelAnyInteraction',
         externalId: string,
         timestamp: string,
         resourceType: string
       }
 
-      interface ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_TalkInteraction_NotImplementedOriginatedFrom {
+      export interface ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_TalkInteraction_NotImplementedOriginatedFrom {
         __typename: 'TalkInteraction' | 'NotImplementedOriginatedFrom'
       }
 
-      interface ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction {
+      export interface ConvoLogConversationEventFragment_BrokenConversationEvent_originatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction {
         __typename: 'NativeMessagingInteraction' | 'WhatsAppInteraction' | 'WeChatInteraction',
         conversationId?: string | null
       }
@@ -545,12 +545,12 @@ describe('ExtractTypes', () => {
 
       //#region MessageEnvelopeData (Fragment) defined in: GraphQL request:686:817
 
-      interface MessageEnvelopeData_EmailInteraction_Fragment {
+      export interface MessageEnvelopeData_EmailInteraction_Fragment {
         __typename: 'EmailInteraction',
         originalEmailURLPath: string
       }
 
-      interface MessageEnvelopeData_L2FjOkUrGUlRHrYBlLrKrZLjPf5Auo7b7u3C5Sh2U_Fragment {
+      export interface MessageEnvelopeData_L2FjOkUrGUlRHrYBlLrKrZLjPf5Auo7b7u3C5Sh2U_Fragment {
         __typename: 'ChannelAnyInteraction' | 'TalkInteraction' | 'NativeMessagingInteraction' | 'WhatsAppInteraction' | 'WeChatInteraction' | 'NotImplementedOriginatedFrom'
       }
 
@@ -571,23 +571,23 @@ describe('ExtractTypes', () => {
 
       //#region ConvoLogOriginatedFrom (Fragment) defined in: GraphQL request:959:1177
 
-      interface ConvoLogOriginatedFrom_EmailInteraction_Fragment {
+      export interface ConvoLogOriginatedFrom_EmailInteraction_Fragment {
         __typename: 'EmailInteraction',
         originalEmailURLPath: string
       }
 
-      interface ConvoLogOriginatedFrom_ChannelAnyInteraction_Fragment {
+      export interface ConvoLogOriginatedFrom_ChannelAnyInteraction_Fragment {
         __typename: 'ChannelAnyInteraction',
         externalId: string,
         timestamp: string,
         resourceType: string
       }
 
-      interface ConvoLogOriginatedFrom_TalkInteraction_NotImplementedOriginatedFrom_Fragment {
+      export interface ConvoLogOriginatedFrom_TalkInteraction_NotImplementedOriginatedFrom_Fragment {
         __typename: 'TalkInteraction' | 'NotImplementedOriginatedFrom'
       }
 
-      interface ConvoLogOriginatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction_Fragment {
+      export interface ConvoLogOriginatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction_Fragment {
         __typename: 'NativeMessagingInteraction' | 'WhatsAppInteraction' | 'WeChatInteraction',
         conversationId?: string | null
       }
@@ -598,30 +598,30 @@ describe('ExtractTypes', () => {
 
       //#region ConvoLogTalkPublicCallSummary (Fragment) defined in: GraphQL request:1185:1469
 
-      interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_EmailInteraction {
+      export interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_EmailInteraction {
         __typename: 'EmailInteraction',
         originalEmailURLPath: string
       }
 
-      interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_ChannelAnyInteraction {
+      export interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_ChannelAnyInteraction {
         __typename: 'ChannelAnyInteraction',
         externalId: string,
         timestamp: string,
         resourceType: string
       }
 
-      interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_TalkInteraction {
+      export interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_TalkInteraction {
         __typename: 'TalkInteraction',
         channel: string,
         type: CallType
       }
 
-      interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction {
+      export interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_NativeMessagingInteraction_WhatsAppInteraction_WeChatInteraction {
         __typename: 'NativeMessagingInteraction' | 'WhatsAppInteraction' | 'WeChatInteraction',
         conversationId?: string | null
       }
 
-      interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_NotImplementedOriginatedFrom {
+      export interface ConvoLogTalkPublicCallSummaryFragment_TalkPublicCallSummary_originatedFrom_NotImplementedOriginatedFrom {
         __typename: 'NotImplementedOriginatedFrom'
       }
 

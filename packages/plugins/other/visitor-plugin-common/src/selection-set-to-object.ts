@@ -828,13 +828,13 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     // LOC => Type => cachedTypeName
 
     // Optimization: Do not create new dependentTypes if fragment typename exists in cache
-    const objMap = this._processor.typeCache.get(this._selectionSet.loc) ?? new Map<string, TypeScriptValue>();
+    const objMap = this._processor.typeCache.get(this._selectionSet.loc) ?? new Map<string, TypeScriptTypeAlias>();
     this._processor.typeCache.set(this._selectionSet.loc, objMap);
 
-    const cachedTypeName = objMap.get(cacheHashKey);
-    if (cachedTypeName) {
+    const cachedType = objMap.get(cacheHashKey);
+    if (cachedType) {
       return {
-        tsType: cachedTypeName,
+        tsType: cachedType,
         dependentTypes: [],
       };
     }
@@ -847,20 +847,10 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
   }
 
   private transformSelectionSetUncached(fieldName: string): {
-    tsType: TypeScriptValue;
+    tsType: TypeScriptTypeAlias;
     dependentTypes: DependentType[];
   } {
     const { grouped, mustAddEmptyObject, dependentTypes: subDependentTypes } = this._buildGroupedSelections(fieldName);
-
-    // This might happen in case we have an interface, that is being queries, without any GraphQL
-    // "type" that implements it. It will lead to a runtime error, but we aim to try to reflect that in
-    // build time as well.
-    if (Object.keys(grouped).length === 0) {
-      return {
-        tsType: this.getUnknownType(),
-        dependentTypes: subDependentTypes,
-      };
-    }
 
     const dependentTypes = Object.keys(grouped)
       .map(typeName => {
@@ -889,7 +879,10 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
       this.getEmptyObjectTypeIfTrue(mustAddEmptyObject),
     ].filter(Boolean);
 
-    const content = new TypeScriptUnion({ members: typeParts });
+    // dependentTypes.length === 0 might happen in case we have an interface, that is being queries, without any GraphQL
+    // "type" that implements it. It will lead to a runtime error, but we aim to try to reflect that in
+    // build time as well.
+    const content = dependentTypes.length === 0 ? this.getUnknownType() : new TypeScriptUnion({ members: typeParts });
     const tsType = new TypeScriptTypeAlias({
       export: this._config.extractAllTypes,
       typeName: fieldName,
