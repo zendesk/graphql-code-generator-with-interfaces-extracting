@@ -23,8 +23,6 @@ import {
   SelectionNode,
   SelectionSetNode,
   TypeMetaFieldDef,
-  OperationTypeNode,
-  // Location,
 } from 'graphql';
 import { DependentType, ParsedDocumentsConfig } from './base-documents-visitor.js';
 import { BaseVisitorConvertOptions } from './base-visitor.js';
@@ -52,7 +50,6 @@ import {
   hasIncrementalDeliveryDirectives,
   mergeSelectionSets,
   separateSelectionSet,
-  // isSelectionOverlapping,
 } from './utils.js';
 import {
   TypeNameProperty,
@@ -83,7 +80,8 @@ type GroupedTypeScriptTypes = Record<
   Array<DependentType | TypeScriptIntersection | TypeScriptUnion | TypeScriptTypeUsage>
 >;
 
-const operationTypes: string[] = Object.values(OperationTypeNode);
+// all values of OperationTypeNode (cannot use the import because it would break compatibility with older versions of 'graphql' package)
+const operationTypes: string[] = ['Query', 'Mutation', 'Subscription'];
 
 function isMetadataFieldName(name: string) {
   return ['__schema', '__type'].includes(name);
