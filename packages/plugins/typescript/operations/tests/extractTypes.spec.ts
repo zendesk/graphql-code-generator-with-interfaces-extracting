@@ -153,13 +153,13 @@ describe('ExtractTypes', () => {
 
         //#region OverlappingFieldsMergingTest (Operation) defined in: GraphQL request:302:503
 
-        export interface OverlappingFieldsMergingTestQuery_me_DummyUser {
+        export interface OverlappingFieldsMergingTestQuery_Query_me_DummyUser {
           __typename: 'DummyUser',
           id: string,
           joinDate: any
         }
 
-        export interface OverlappingFieldsMergingTestQuery_me_ActiveUser {
+        export interface OverlappingFieldsMergingTestQuery_Query_me_ActiveUser {
           __typename: 'ActiveUser',
           id: string,
           isActive: boolean,
@@ -167,11 +167,11 @@ describe('ExtractTypes', () => {
           parentUser: MeFragment_ActiveUser_parentUser
         }
 
-        export type OverlappingFieldsMergingTestQuery_me = OverlappingFieldsMergingTestQuery_me_DummyUser | OverlappingFieldsMergingTestQuery_me_ActiveUser;
+        export type OverlappingFieldsMergingTestQuery_Query_me = OverlappingFieldsMergingTestQuery_Query_me_DummyUser | OverlappingFieldsMergingTestQuery_Query_me_ActiveUser;
 
         export interface OverlappingFieldsMergingTestQuery_Query {
           __typename: 'Query',
-          me?: OverlappingFieldsMergingTestQuery_me | null
+          me?: OverlappingFieldsMergingTestQuery_Query_me | null
         }
 
         export type OverlappingFieldsMergingTestQuery = OverlappingFieldsMergingTestQuery_Query;
@@ -182,13 +182,13 @@ describe('ExtractTypes', () => {
 
         //#region NestedOverlappingFieldsMergingTest (Operation) defined in: GraphQL request:512:832
 
-        export interface NestedOverlappingFieldsMergingTestQuery_me_DummyUser {
+        export interface NestedOverlappingFieldsMergingTestQuery_Query_me_DummyUser {
           __typename: 'DummyUser',
           id: string,
           joinDate: any
         }
 
-        export interface NestedOverlappingFieldsMergingTestQuery_me_ActiveUser {
+        export interface NestedOverlappingFieldsMergingTestQuery_Query_me_ActiveUser {
           __typename: 'ActiveUser',
           isActive: boolean,
           id: string,
@@ -196,11 +196,11 @@ describe('ExtractTypes', () => {
           parentUser: MeFragment_ActiveUser_parentUser
         }
 
-        export type NestedOverlappingFieldsMergingTestQuery_me = NestedOverlappingFieldsMergingTestQuery_me_DummyUser | NestedOverlappingFieldsMergingTestQuery_me_ActiveUser;
+        export type NestedOverlappingFieldsMergingTestQuery_Query_me = NestedOverlappingFieldsMergingTestQuery_Query_me_DummyUser | NestedOverlappingFieldsMergingTestQuery_Query_me_ActiveUser;
 
         export interface NestedOverlappingFieldsMergingTestQuery_Query {
           __typename: 'Query',
-          me?: NestedOverlappingFieldsMergingTestQuery_me | null
+          me?: NestedOverlappingFieldsMergingTestQuery_Query_me | null
         }
 
         export type NestedOverlappingFieldsMergingTestQuery = NestedOverlappingFieldsMergingTestQuery_Query;

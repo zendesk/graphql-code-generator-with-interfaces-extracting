@@ -301,7 +301,7 @@ export class BaseDocumentsVisitor<
       suffix: operationTypeSuffix + this._parsedConfig.operationResultSuffix,
     });
 
-    let operationResult: TypeScriptTypeAlias | null = null;
+    let operationResult: TypeScriptTypeAlias | TypeScriptInterface;
 
     if (
       (selectionSetObjects.tsType instanceof TypeScriptTypeAlias ||
@@ -309,6 +309,7 @@ export class BaseDocumentsVisitor<
       selectionSetObjects.tsType.typeName === operationResultTypeName
     ) {
       selectionSetObjects.tsType.export = true;
+      operationResult = selectionSetObjects.tsType;
     } else {
       operationResult = new TypeScriptTypeAlias({
         typeName: this.convertName(name, {
@@ -343,17 +344,18 @@ export class BaseDocumentsVisitor<
 
     const interfacesResult = this._parsedConfig.extractAllTypes ? selectionSetObjects.dependentTypes : [];
 
-    const locationComment = node.loc
-      ? `//#region ${node.name.value} (Operation) defined in: ${node.loc.source.name}:${node.loc.start}:${node.loc.end}`
-      : undefined;
-    const locationEndComment = node.loc ? `//#endregion ${node.name.value} (Operation)` : undefined;
+    const locationComment =
+      node.loc && node.name
+        ? `//#region ${node.name.value} (Operation) defined in: ${node.loc.source.name}:${node.loc.start}:${node.loc.end}`
+        : undefined;
+    const locationEndComment = node.loc && node.name ? `//#endregion ${node.name.value} (Operation)` : undefined;
 
     return (
       [
         locationComment,
         ...interfacesResult.map(printDependentType),
         operationVariables,
-        operationResult?.printDeclaration(),
+        operationResult.printDeclaration(),
         locationEndComment,
       ]
         .filter(Boolean)

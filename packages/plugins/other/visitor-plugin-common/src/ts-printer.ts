@@ -203,12 +203,17 @@ export class TypeScriptValueWithModifiers implements TypeScriptPrintable {
 }
 
 export class TypeScriptObject implements TypeScriptPrintable {
-  properties: TypeScriptObjectProperty[];
+  properties: TypeScriptObjectProperty[] = [];
   constructor({ properties }: { properties: TypeScriptObjectProperty[] }) {
-    this.properties = properties;
+    this.addProperty(...properties);
   }
-  addProperty(property: TypeScriptObjectProperty) {
-    this.properties.push(property);
+  addProperty(...properties: TypeScriptObjectProperty[]) {
+    for (const property of properties) {
+      if (!property) {
+        throw new Error(`Cannot create a TypeScriptObject with a null property`);
+      }
+    }
+    this.properties.push(...properties);
     return this;
   }
   print({ indentation = 0, ...printContext }: PrintContext = {}): string {
@@ -230,19 +235,25 @@ function flattenProperties(m: TypeScriptValue): (TypeScriptObjectProperty | fals
 }
 
 export class TypeScriptIntersection implements TypeScriptPrintable {
-  members: TypeScriptValue[];
+  members: TypeScriptValue[] = [];
   constructor({ members }: { members: TypeScriptValue[] }) {
-    this.members = members;
+    this.addMember(...members);
   }
-  addMember(member: TypeScriptValue) {
-    this.members.push(member);
+
+  addMember(...members: TypeScriptValue[]) {
+    for (const member of members) {
+      if (!member) {
+        throw new Error(`Cannot create TypeScriptIntersection with a null member`);
+      }
+    }
+    this.members.push(...members);
     return this;
   }
 
   getFlattenedMemberProperties(): TypeScriptObjectProperty[] | false {
     const flattenedProperties = this.members.flatMap(flattenProperties);
     if (flattenedProperties.every((m): m is TypeScriptObjectProperty => m !== false)) {
-      return flattenProperties as unknown as TypeScriptObjectProperty[];
+      return flattenedProperties;
     }
     return false;
   }
@@ -291,12 +302,17 @@ export class TypeScriptIntersection implements TypeScriptPrintable {
 }
 
 export class TypeScriptUnion implements TypeScriptPrintable {
-  members: TypeScriptValue[];
+  members: TypeScriptValue[] = [];
   constructor({ members }: { members: TypeScriptValue[] }) {
-    this.members = members;
+    this.addMember(...members);
   }
-  addMember(member: TypeScriptValue) {
-    this.members.push(member);
+  addMember(...members: TypeScriptValue[]) {
+    for (const member of members) {
+      if (!member) {
+        throw new Error(`Cannot create TypeScriptUnion with a null member`);
+      }
+    }
+    this.members.push(...members);
     return this;
   }
   print({ indentation = 0, ...printContext }: PrintContext = {}): string {

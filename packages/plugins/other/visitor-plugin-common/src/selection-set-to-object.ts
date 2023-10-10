@@ -565,10 +565,10 @@ export class SelectionSetToObject<Config extends ParsedDocumentsConfig = ParsedD
     );
 
     const mergedObjects = allObjectProperties.length
-      ? this._processor.buildFieldsIntoObject(allObjectProperties)
-      : null;
+      ? [this._processor.buildFieldsIntoObject(allObjectProperties)]
+      : [];
 
-    return this._processor.buildSelectionSetFromPieces([...allTypes, mergedObjects]);
+    return this._processor.buildSelectionSetFromPieces([...allTypes, ...mergedObjects]);
   }
 
   protected buildSelectionSet(
