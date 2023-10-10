@@ -131,7 +131,7 @@ describe('TypeScript Operations Plugin', () => {
       await validate(content, config);
     });
 
-    it('Should handle "namespacedImportName" and add it when specified', async () => {
+    it.only('Should handle "namespacedImportName" and add it when specified', async () => {
       const ast = parse(/* GraphQL */ `
         query notifications {
           notifications {

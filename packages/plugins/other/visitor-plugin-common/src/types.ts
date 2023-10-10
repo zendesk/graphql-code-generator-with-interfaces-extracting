@@ -98,6 +98,8 @@ export interface DeclarationKindConfig {
   type?: DeclarationKind;
   interface?: DeclarationKind;
   arguments?: DeclarationKind;
+  operation?: DeclarationKind;
+  fragment?: DeclarationKind;
 }
 
 export interface AvoidOptionalsConfig {

@@ -14,6 +14,9 @@ import { SelectionSetToObject } from './selection-set-to-object.js';
 import { NormalizedScalarsMap } from './types.js';
 import { buildScalarsFromConfig, DeclarationBlock, DeclarationBlockConfig, getConfigValue } from './utils.js';
 import { OperationVariablesToObject } from './variables-to-object.js';
+import { TypeScriptInterface, TypeScriptObject, TypeScriptTypeAlias } from './ts-printer.js';
+
+export type DependentType = TypeScriptTypeAlias | TypeScriptObject;
 
 function getRootType(operation: OperationTypeNode, schema: GraphQLSchema) {
   switch (operation) {
@@ -30,6 +33,7 @@ function getRootType(operation: OperationTypeNode, schema: GraphQLSchema) {
 export interface ParsedDocumentsConfig extends ParsedTypesConfig {
   addTypename: boolean;
   preResolveTypes: boolean;
+  extractAllTypes: boolean;
   globalNamespace: boolean;
   operationResultSuffix: string;
   dedupeOperationSuffix: boolean;
@@ -236,25 +240,37 @@ export class BaseDocumentsVisitor<
     const fragmentRootType = this._schema.getType(node.typeCondition.name.value);
     const selectionSet = this._selectionSetToObject.createNext(fragmentRootType, node.selectionSet);
     const fragmentSuffix = this.getFragmentSuffix(node);
-    return [
-      selectionSet.transformFragmentSelectionSetToTypes(node.name.value, fragmentSuffix, this._declarationBlockConfig),
-      this.config.experimentalFragmentVariables
-        ? new DeclarationBlock({
-            ...this._declarationBlockConfig,
-            blockTransformer: t => this.applyVariablesWrapper(t),
-          })
-            .export()
-            .asKind('type')
-            .withName(
-              this.convertName(node.name.value, {
-                suffix: fragmentSuffix + 'Variables',
-              })
-            )
-            .withBlock(this._variablesTransfomer.transform(node.variableDefinitions)).string
-        : undefined,
-    ]
-      .filter(r => r)
-      .join('\n\n');
+    const locationComment = node.loc
+      ? `//#region ${node.name.value} (Fragment) defined in: ${node.loc.source.name}:${node.loc.start}:${node.loc.end}`
+      : undefined;
+    const locationEndComment = node.loc ? `//#endregion ${node.name.value} (Fragment)` : undefined;
+    return (
+      [
+        locationComment,
+        selectionSet
+          .transformFragmentSelectionSetToTypes(node.name.value, fragmentSuffix, this._declarationBlockConfig)
+          .map(printDependentType)
+          .join('\n\n'),
+        this.config.experimentalFragmentVariables
+          ? new DeclarationBlock({
+              ...this._declarationBlockConfig,
+              blockTransformer: t => this.applyVariablesWrapper(t),
+            })
+              .export()
+              .asKind('type')
+              .withName(
+                this.convertName(node.name.value, {
+                  suffix: fragmentSuffix + 'Variables',
+                })
+              )
+              .withBlock(this._variablesTransfomer.transform(node.variableDefinitions)).string
+          : undefined,
+        locationEndComment,
+      ]
+        .filter(Boolean)
+        .map(s => s.trim())
+        .join('\n\n') + '\n'
+    );
   }
 
   protected applyVariablesWrapper(variablesBlock: string): string {
@@ -275,16 +291,43 @@ export class BaseDocumentsVisitor<
     );
     const operationType: string = pascalCase(node.operation);
     const operationTypeSuffix = this.getOperationSuffix(name, operationType);
+    const selectionSetObjects = selectionSet.transformSelectionSet(
+      this.convertName(name, {
+        suffix: operationTypeSuffix,
+      })
+    );
 
-    const operationResult = new DeclarationBlock(this._declarationBlockConfig)
-      .export()
-      .asKind('type')
-      .withName(
-        this.convertName(name, {
+    const operationResultTypeName = this.convertName(name, {
+      suffix: operationTypeSuffix + this._parsedConfig.operationResultSuffix,
+    });
+
+    let operationResult: TypeScriptTypeAlias | TypeScriptInterface;
+
+    if (
+      (selectionSetObjects.tsType instanceof TypeScriptTypeAlias ||
+        selectionSetObjects.tsType instanceof TypeScriptInterface) &&
+      selectionSetObjects.tsType.typeName === operationResultTypeName
+    ) {
+      selectionSetObjects.tsType.export = true;
+      operationResult = selectionSetObjects.tsType;
+    } else {
+      operationResult = new TypeScriptTypeAlias({
+        typeName: this.convertName(name, {
           suffix: operationTypeSuffix + this._parsedConfig.operationResultSuffix,
-        })
-      )
-      .withContent(selectionSet.transformSelectionSet()).string;
+        }),
+        definition: selectionSetObjects.tsType,
+        export: true,
+      });
+    }
+
+    // TODO: convert operationVariables ??
+    // const operationVariables = new TypeScriptTypeAlias({
+    //   typeName: this.convertName(name, {
+    //     suffix: operationTypeSuffix + 'Variables',
+    //   }),
+    //   definition: visitedOperationVariables,
+    //   export: true,
+    // });
 
     const operationVariables = new DeclarationBlock({
       ...this._declarationBlockConfig,
@@ -299,6 +342,29 @@ export class BaseDocumentsVisitor<
       )
       .withBlock(visitedOperationVariables).string;
 
-    return [operationVariables, operationResult].filter(r => r).join('\n\n');
+    const interfacesResult = this._parsedConfig.extractAllTypes ? selectionSetObjects.dependentTypes : [];
+
+    const locationComment =
+      node.loc && node.name
+        ? `//#region ${node.name.value} (Operation) defined in: ${node.loc.source.name}:${node.loc.start}:${node.loc.end}`
+        : undefined;
+    const locationEndComment = node.loc && node.name ? `//#endregion ${node.name.value} (Operation)` : undefined;
+
+    return (
+      [
+        locationComment,
+        ...interfacesResult.map(printDependentType),
+        operationVariables,
+        operationResult.printDeclaration(),
+        locationEndComment,
+      ]
+        .filter(Boolean)
+        .map(s => s.trim())
+        .join('\n\n') + '\n'
+    );
   }
+}
+
+function printDependentType(i: DependentType): string {
+  return 'printDeclaration' in i ? i.printDeclaration() : '';
 }

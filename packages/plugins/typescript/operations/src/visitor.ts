@@ -2,6 +2,7 @@ import {
   AvoidOptionalsConfig,
   BaseDocumentsVisitor,
   DeclarationKind,
+  FieldNameConfig,
   generateFragmentImportStatement,
   getConfigValue,
   LoadedFragment,
@@ -68,10 +69,14 @@ export class TypeScriptDocumentsVisitor extends BaseDocumentsVisitor<
       type: GraphQLOutputType | GraphQLNamedType | null,
       isConditional = false,
       isOptional = false
-    ): string => {
+    ): FieldNameConfig => {
       const optional =
         isOptional || isConditional || (!this.config.avoidOptionals.field && !!type && !isNonNullType(type));
-      return (this.config.immutableTypes ? `readonly ${name}` : name) + (optional ? '?' : '');
+      return {
+        propertyName: name,
+        optional,
+        readonly: this.config.immutableTypes,
+      };
     };
 
     const processorConfig: SelectionSetProcessorConfig = {

@@ -28,6 +28,7 @@ export interface ParsedConfig {
   typesSuffix: string;
   addTypename: boolean;
   nonOptionalTypename: boolean;
+  extractAllTypes: boolean;
   externalFragments: LoadedFragment[];
   fragmentImports: ImportDeclaration<FragmentImport>[];
   immutableTypes: boolean;
@@ -371,6 +372,8 @@ export interface RawConfig {
    * Default it will be `true` this way it ensure that generated code works with [non-compliant bundlers](https://github.com/dotansimha/graphql-code-generator/issues/8065).
    */
   emitLegacyCommonJSImports?: boolean;
+
+  extractAllTypes?: boolean;
 }
 
 export class BaseVisitor<TRawConfig extends RawConfig = RawConfig, TPluginConfig extends ParsedConfig = ParsedConfig> {
@@ -393,6 +396,7 @@ export class BaseVisitor<TRawConfig extends RawConfig = RawConfig, TPluginConfig
       inlineFragmentTypes: rawConfig.inlineFragmentTypes ?? 'inline',
       emitLegacyCommonJSImports:
         rawConfig.emitLegacyCommonJSImports === undefined ? true : !!rawConfig.emitLegacyCommonJSImports,
+      extractAllTypes: rawConfig.extractAllTypes ?? false,
       ...((additionalConfig || {}) as any),
     };
 

@@ -1,11 +1,31 @@
-import { GraphQLInterfaceType, GraphQLNamedType, GraphQLObjectType, GraphQLOutputType } from 'graphql';
+import { GraphQLInterfaceType, GraphQLNamedType, GraphQLObjectType, GraphQLOutputType, Location } from 'graphql';
 import { AvoidOptionalsConfig, ConvertNameFn, NormalizedScalarsMap } from '../types.js';
+import {
+  TypeScriptIntersection,
+  TypeScriptObject,
+  TypeScriptObjectProperty,
+  TypeScriptTypeAlias,
+  TypeScriptTypeUsage,
+  TypeScriptValue,
+  TypeScriptValueWithModifiers,
+} from '../ts-printer.js';
 
 export type PrimitiveField = { isConditional: boolean; fieldName: string };
 export type PrimitiveAliasedFields = { alias: string; fieldName: string };
-export type LinkField = { alias: string; name: string; type: string; selectionSet: string };
-export type NameAndType = { name: string; type: string };
-export type ProcessResult = null | Array<NameAndType | string>;
+export type TSSelectionSet = TypeScriptObject | TypeScriptTypeUsage;
+export type LinkField = {
+  alias: FieldNameConfig;
+  name: FieldNameConfig;
+  type: string;
+  selectionSet: TypeScriptObject | TypeScriptTypeUsage | TypeScriptValueWithModifiers;
+};
+export type ProcessResult = null | Array<TypeScriptObjectProperty | TSSelectionSet>;
+
+export type FieldNameConfig = {
+  propertyName: string;
+  optional?: boolean;
+  readonly?: boolean;
+};
 
 export type SelectionSetProcessorConfig = {
   namespacedImportName: string | null;
@@ -18,26 +38,28 @@ export type SelectionSetProcessorConfig = {
     type?: GraphQLOutputType | GraphQLNamedType | null,
     isConditional?: boolean,
     isOptional?: boolean
-  ): string;
+  ): FieldNameConfig;
   wrapTypeWithModifiers(baseType: string, type: GraphQLOutputType | GraphQLNamedType): string;
   avoidOptionals?: AvoidOptionalsConfig | boolean;
 };
 
-export class BaseSelectionSetProcessor<Config extends SelectionSetProcessorConfig> {
+export class BaseSelectionSetProcessor<Config extends SelectionSetProcessorConfig = SelectionSetProcessorConfig> {
+  typeCache = new Map<Location, Map<string, TypeScriptTypeAlias>>();
+
   constructor(public config: Config) {}
 
-  buildFieldsIntoObject(allObjectsMerged: string[]): string {
-    return `{ ${allObjectsMerged.join(', ')} }`;
+  buildFieldsIntoObject(allObjectsMerged: TypeScriptObjectProperty[]) {
+    return new TypeScriptObject({ properties: allObjectsMerged });
   }
 
-  buildSelectionSetFromStrings(pieces: string[]): string {
+  buildSelectionSetFromPieces(pieces: TSSelectionSet[]) {
     if (pieces.length === 0) {
       return null;
     }
     if (pieces.length === 1) {
       return pieces[0];
     }
-    return `(\n  ${pieces.join(`\n  & `)}\n)`;
+    return new TypeScriptIntersection({ members: pieces });
   }
 
   transformPrimitiveFields(
@@ -64,7 +86,8 @@ export class BaseSelectionSetProcessor<Config extends SelectionSetProcessorConfi
     throw new Error(`Please override "transformLinkFields" as part of your BaseSelectionSetProcessor implementation!`);
   }
 
-  transformTypenameField(_type: string, _name: string): ProcessResult {
+  transformTypenameField(_type: TypeScriptValue, _nameConfig: FieldNameConfig): ProcessResult {
+    // TODO: what about optionality? it's not being accounted for when this is used
     throw new Error(
       `Please override "transformTypenameField" as part of your BaseSelectionSetProcessor implementation!`
     );
