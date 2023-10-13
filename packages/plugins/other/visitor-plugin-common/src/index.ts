@@ -14,6 +14,7 @@ export * from './scalars.js';
 export * from './selection-set-processor/base.js';
 export * from './selection-set-processor/pre-resolve-types.js';
 export * from './selection-set-to-object.js';
+export * from './ts-printer.js';
 export * from './types.js';
 export * from './utils.js';
 export * from './variables-to-object.js';

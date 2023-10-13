@@ -5,5 +5,5 @@ export * from './oldVisit.js';
 export * from './profiler.js';
 export { resolveExternalModuleAndFn } from './resolve-external-module-and-fn.js';
 export * from './types.js';
-export { Types } from './types.js';
+export type { Types } from './types.js';
 export * from './utils.js';

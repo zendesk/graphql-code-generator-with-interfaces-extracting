@@ -1,10 +1,19 @@
 import {
   BaseSelectionSetProcessor,
+  FieldNameConfig,
   LinkField,
   PrimitiveAliasedFields,
   PrimitiveField,
   ProcessResult,
   SelectionSetProcessorConfig,
+  TypeNameProperty,
+  TypeScriptObject,
+  TypeScriptObjectProperty,
+  TypeScriptRawTypeReference,
+  TypeScriptStringLiteral,
+  TypeScriptTypeUsage,
+  TypeScriptUnion,
+  TypeScriptValue,
 } from '@graphql-codegen/visitor-plugin-common';
 import { GraphQLInterfaceType, GraphQLObjectType } from 'graphql';
 
@@ -25,20 +34,37 @@ export class TypeScriptSelectionSetProcessor extends BaseSelectionSetProcessor<S
       });
 
     if (unsetTypes) {
-      return [`MakeEmpty<${parentName}, ${fields.map(field => `'${field.fieldName}'`).join(' | ')}>`];
+      return [
+        new TypeScriptTypeUsage({
+          typeReference: new TypeScriptRawTypeReference('MakeEmpty'),
+          typeArguments: [
+            new TypeScriptRawTypeReference(parentName),
+            new TypeScriptUnion({
+              members: fields.map(field => new TypeScriptStringLiteral({ literal: field.fieldName })),
+            }),
+          ],
+        }),
+      ];
     }
 
     let hasConditionals = false;
-    const conditilnalsList: string[] = [];
-    let resString = `Pick<${parentName}, ${fields
-      .map(field => {
-        if (field.isConditional) {
-          hasConditionals = true;
-          conditilnalsList.push(field.fieldName);
-        }
-        return `'${field.fieldName}'`;
-      })
-      .join(' | ')}>`;
+    const conditionalsList: string[] = [];
+
+    let res = new TypeScriptTypeUsage({
+      typeReference: new TypeScriptRawTypeReference('Pick'),
+      typeArguments: [
+        new TypeScriptRawTypeReference(parentName),
+        new TypeScriptUnion({
+          members: fields.map(field => {
+            if (field.isConditional) {
+              hasConditionals = true;
+              conditionalsList.push(field.fieldName);
+            }
+            return new TypeScriptStringLiteral({ literal: field.fieldName });
+          }),
+        }),
+      ],
+    });
 
     if (hasConditionals) {
       const avoidOptional =
@@ -50,15 +76,33 @@ export class TypeScriptSelectionSetProcessor extends BaseSelectionSetProcessor<S
             this.config.avoidOptionals.object));
 
       const transform = avoidOptional ? 'MakeMaybe' : 'MakeOptional';
-      resString = `${
-        this.config.namespacedImportName ? `${this.config.namespacedImportName}.` : ''
-      }${transform}<${resString}, ${conditilnalsList.map(field => `'${field}'`).join(' | ')}>`;
+
+      res = new TypeScriptTypeUsage({
+        typeReference: new TypeScriptRawTypeReference(
+          `${this.config.namespacedImportName ? `${this.config.namespacedImportName}.` : ''}${transform}`
+        ),
+        typeArguments: [
+          res,
+          new TypeScriptUnion({
+            members: conditionalsList.map(field => new TypeScriptStringLiteral({ literal: field })),
+          }),
+        ],
+      });
     }
-    return [resString];
+    return [res];
   }
 
-  transformTypenameField(type: string, name: string): ProcessResult {
-    return [`{ ${name}: ${type} }`];
+  transformTypenameField(type: TypeScriptValue, nameConfig: FieldNameConfig): ProcessResult {
+    return [
+      new TypeScriptObject({
+        properties: [
+          new TypeNameProperty({
+            ...nameConfig,
+            value: type,
+          }),
+        ],
+      }),
+    ];
   }
 
   transformAliasesPrimitiveFields(
@@ -76,16 +120,18 @@ export class TypeScriptSelectionSetProcessor extends BaseSelectionSetProcessor<S
       });
 
     return [
-      `{ ${fields
-        .map(aliasedField => {
+      new TypeScriptObject({
+        properties: fields.map(aliasedField => {
           const value =
             aliasedField.fieldName === '__typename'
-              ? `'${schemaType.name}'`
-              : `${parentName}['${aliasedField.fieldName}']`;
-
-          return `${aliasedField.alias}: ${value}`;
-        })
-        .join(', ')} }`,
+              ? new TypeScriptStringLiteral({ literal: schemaType.name })
+              : new TypeScriptTypeUsage({
+                  typeReference: new TypeScriptRawTypeReference(parentName),
+                  propertyPath: [new TypeScriptStringLiteral({ literal: aliasedField.fieldName })],
+                });
+          return new TypeScriptObjectProperty({ propertyName: aliasedField.alias, value });
+        }),
+      }),
     ];
   }
 
@@ -94,6 +140,16 @@ export class TypeScriptSelectionSetProcessor extends BaseSelectionSetProcessor<S
       return [];
     }
 
-    return [`{ ${fields.map(field => `${field.alias || field.name}: ${field.selectionSet}`).join(', ')} }`];
+    return [
+      new TypeScriptObject({
+        properties: fields.map(
+          field =>
+            new TypeScriptObjectProperty({
+              ...(field.alias || field.name),
+              value: field.selectionSet,
+            })
+        ),
+      }),
+    ];
   }
 }
