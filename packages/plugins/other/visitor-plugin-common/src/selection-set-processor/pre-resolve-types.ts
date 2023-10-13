@@ -2,20 +2,33 @@ import { getBaseType, removeNonNullWrapper } from '@graphql-codegen/plugin-helpe
 import { GraphQLInterfaceType, GraphQLObjectType, isEnumType, isNonNullType } from 'graphql';
 import {
   BaseSelectionSetProcessor,
+  FieldNameConfig,
   LinkField,
   PrimitiveAliasedFields,
   PrimitiveField,
   ProcessResult,
   SelectionSetProcessorConfig,
 } from './base.js';
+import {
+  TypeNameProperty,
+  TypeScriptObjectProperty,
+  TypeScriptPrimitiveNever,
+  TypeScriptRawTypeReference,
+  TypeScriptStringLiteral,
+  TypeScriptValue,
+} from '../ts-printer.js';
 
 export class PreResolveTypesProcessor extends BaseSelectionSetProcessor<SelectionSetProcessorConfig> {
-  transformTypenameField(type: string, name: string): ProcessResult {
+  transformTypenameField(type: TypeScriptValue, nameConfig: FieldNameConfig): ProcessResult {
     return [
-      {
-        type,
-        name,
-      },
+      new TypeNameProperty({
+        ...nameConfig,
+        value: type,
+      }),
+      // new TypeScriptObjectProperty({
+      //   propertyName: name,
+      //   value: new TypeScriptRawTypeReference(type),
+      // }),
     ];
   }
 
@@ -37,7 +50,7 @@ export class PreResolveTypesProcessor extends BaseSelectionSetProcessor<Selectio
       const useInnerType = field.isConditional && isNonNullType(fieldObj.type);
       const innerType = useInnerType ? removeNonNullWrapper(fieldObj.type) : undefined;
 
-      const name = this.config.formatNamedField(
+      const nameConfig = this.config.formatNamedField(
         field.fieldName,
         useInnerType ? innerType : fieldObj.type,
         field.isConditional,
@@ -45,10 +58,10 @@ export class PreResolveTypesProcessor extends BaseSelectionSetProcessor<Selectio
       );
 
       if (unsetTypes) {
-        return {
-          name,
-          type: 'never',
-        };
+        return new TypeScriptObjectProperty({
+          ...nameConfig,
+          value: TypeScriptPrimitiveNever,
+        });
       }
 
       if (isEnumType(baseType)) {
@@ -64,10 +77,10 @@ export class PreResolveTypesProcessor extends BaseSelectionSetProcessor<Selectio
 
       const wrappedType = this.config.wrapTypeWithModifiers(typeToUse, fieldObj.type);
 
-      return {
-        name,
-        type: wrappedType,
-      };
+      return new TypeScriptObjectProperty({
+        ...nameConfig,
+        value: new TypeScriptRawTypeReference(wrappedType),
+      });
     });
   }
 
@@ -82,11 +95,11 @@ export class PreResolveTypesProcessor extends BaseSelectionSetProcessor<Selectio
 
     return fields.map(aliasedField => {
       if (aliasedField.fieldName === '__typename') {
-        const name = this.config.formatNamedField(aliasedField.alias, null);
-        return {
-          name,
-          type: `'${schemaType.name}'`,
-        };
+        const nameConfig = this.config.formatNamedField(aliasedField.alias, null);
+        return new TypeScriptObjectProperty({
+          ...nameConfig,
+          value: new TypeScriptStringLiteral({ literal: schemaType.name }),
+        });
       }
       const fieldObj = schemaType.getFields()[aliasedField.fieldName];
       const baseType = getBaseType(fieldObj.type);
@@ -101,20 +114,20 @@ export class PreResolveTypesProcessor extends BaseSelectionSetProcessor<Selectio
           });
       }
 
-      const name = this.config.formatNamedField(aliasedField.alias, fieldObj.type, undefined, unsetTypes);
+      const nameConfig = this.config.formatNamedField(aliasedField.alias, fieldObj.type, undefined, unsetTypes);
       if (unsetTypes) {
-        return {
-          type: 'never',
-          name,
-        };
+        return new TypeScriptObjectProperty({
+          ...nameConfig,
+          value: TypeScriptPrimitiveNever,
+        });
       }
 
       const wrappedType = this.config.wrapTypeWithModifiers(typeToUse, fieldObj.type);
 
-      return {
-        name,
-        type: wrappedType,
-      };
+      return new TypeScriptObjectProperty({
+        ...nameConfig,
+        value: new TypeScriptRawTypeReference(wrappedType),
+      });
     });
   }
 
@@ -123,9 +136,12 @@ export class PreResolveTypesProcessor extends BaseSelectionSetProcessor<Selectio
       return [];
     }
 
-    return fields.map(field => ({
-      name: field.alias || field.name,
-      type: unsetTypes ? 'never' : field.selectionSet,
-    }));
+    return fields.map(
+      field =>
+        new TypeScriptObjectProperty({
+          ...(field.alias || field.name),
+          value: unsetTypes ? TypeScriptPrimitiveNever : field.selectionSet,
+        })
+    );
   }
 }
